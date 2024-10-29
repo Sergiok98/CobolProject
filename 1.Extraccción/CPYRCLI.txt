@@ -1,0 +1,37 @@
+      ******************************************************************
+      ** C O P Y   R U T I N A   L I S T A R  |  R E P A G I N A R    **
+      ******************************************************************
+       01 CPY-CPYRCLI.
+          05 ENTRADA.
+             10 OPCION                      PIC X(01).
+             10 NUM-OCCURS-E                PIC 9(03).
+          05 REPAGINACION.
+             10 DNI-CLI-REP                 PIC X(9).
+          05 SALIDA.
+             10 SALIDA-RUT               OCCURS 5.
+                15 DNI-CL-RUT            PIC X(9).
+                15 NOMBRE-CL-RUT         PIC X(25).
+                15 APELLIDO-1-RUT        PIC X(25).
+                15 APELLIDO-2-RUT        PIC X(25).
+                15 CLASE-VIA-RUT         PIC X(25).
+                15 NOMBRE-VIA-RUT        PIC X(55).
+                15 NUMERO-VIA-RUT        PIC S9(9) USAGE COMP.
+                15 COD-POSTAL-RUT        PIC X(5).
+                15 CIUDAD-RUT            PIC X(25).
+                15 TELEFONO-RUT          PIC X(10).
+                15 OBSERVACIONES-RUT.
+                   49 OBSERVACIONES-LEN-RUT
+                      PIC S9(4) USAGE COMP.
+                   49 OBSERVACIONES-TEXT-RUT
+                      PIC X(500).
+          05 SALIDA-CONTROL.
+             10 MAS-DATOS                   PIC X(01).
+             10 NUM-OCCURS-S                PIC 9(03).
+          05 ERRORES.
+             10 COD-RETORNO                 PIC X(02).
+             10 COD-SUBRETORNO              PIC X(02).
+             10 PARRAFO                     PIC X(30).
+             10 DESCRIPCION                 PIC X(50).
+             10 TABLA                       PIC X(30).
+             10 SQLCODE-RUT                 PIC S9(04).
+      *

@@ -1,0 +1,754 @@
+      ******************************************************************
+      ** IDENTIFICATION DIVISION                                      **
+      ******************************************************************
+      *
+      ******************************************************************
+      ** PGM QUE MEDIANTE UN CURSOR SELECCIONA LOS CLIENTES QUE TIENEN**
+      ** SEGUROS NO MAPFRE Y LOS ESCRIBE EN UN FICHERO DE SALIDA      **
+      ** ADEMAS EL PROGRAMA IMPLEMENTA REPOSICIONAMIENTO              **
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. CLIVACR2.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 09/10/2024.
+      *
+      ******************************************************************
+      ** ENVIRONMENT DIVISION                                         **
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *
+           SELECT FSALIDA ASSIGN TO FSALIDA
+           FILE STATUS FS-FSALIDA.
+      *
+      ******************************************************************
+      ** DATA DIVISION                                                **
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       FD FSALIDA
+           RECORDING MODE IS F.
+       01  REG-FSALIDA                PIC X(710).
+      *
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01  FS-FILE-STATUS.
+           05  FS-FSALIDA             PIC X(02).
+      *
+       01  CA-CONSTANTES.
+           05  CA-PGM                 PIC X(08) VALUE 'CLIVACR2'.
+           05  CA-MAPFRE              PIC X(06) VALUE 'MAPFRE'.
+           05  CA-KO                  PIC X(02) VALUE 'KO'.
+           05  CA-OK                  PIC X(02) VALUE 'OK'.
+           05  CA-00                  PIC X(02) VALUE '00'.
+           05  CA-0                   PIC X(01) VALUE '0'.
+           05  CA-10                  PIC X(02) VALUE '10'.
+           05  CA-99                  PIC X(02) VALUE '99'.
+      *
+       01  CN-CONSTANTES.
+           05  CN-0                   PIC 9 VALUE 0.
+           05  CN-100                 PIC 9(3) VALUE 100.
+           05  CN-803                 PIC S9(4) VALUE -803.
+      *
+       01  CN-CONTADORES.
+           05  CN-REG-DAREPOS-UPDATE      PIC 9(03).
+           05  CN-REG-LEIDOS-CURSOR       PIC 9(03).
+           05  CN-REG-LEIDOS-CURSOR-REP   PIC 9(03).
+           05  CN-REG-ESCRITO-SALIDA      PIC 9(03).
+      *
+       01  SW-SWITCHES.
+           05  SW-FIN-CURSOR              PIC X(01).
+               88  SW-SI-FIN-CURSOR       VALUE 'S'.
+               88  SW-NO-FIN-CURSOR       VALUE 'N'.
+           05  SW-FIN-CURSOR-REP          PIC X(01).
+               88  SW-SI-FIN-CURSOR-REP   VALUE 'S'.
+               88  SW-NO-FIN-CURSOR-REP   VALUE 'N'.
+           05  SW-REPOSICIONAMIENTO       PIC X(02).
+               88  SW-SI-REPOS            VALUE 'S'.
+               88  SW-NO-REPOS            VALUE 'N'.
+      *
+       01 WK-VARIABLES.
+          05 WK-SQLCODE               PIC -999.
+      *
+       01 WK-CLAVES.
+          05 WK-DNI-CL                PIC X(09).
+      *
+      * DCL DE LA TABLA CLIENTES-PEPITO-SEG
+      *
+           EXEC SQL
+               INCLUDE CLIPEPTB
+           END-EXEC.
+      *
+      * DCL DE LA TABLA DAREPOS
+      *
+           EXEC SQL
+               INCLUDE TBDAREPO
+           END-EXEC.
+      *
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+      * CURSOR DE CLIENTES-PEPITO-SEG QUE MUESTRA LOS CLIENTES QUE
+      * TIENEN SEGUROS NO MAPFRE, MEDIANTE LA CLAUSULA WITH HOLD
+      * EVITAMOS QUE EL CURSOR SE CIERRE CON EL COMMIT QUE SE
+      * REALIZA AL ACTUALIZAR LA TABLA DAREPOS Y CON SELECT 1
+      * EVITAMOS LA DUPLICCIDAD DE REGISTROS
+      *
+           EXEC SQL
+              DECLARE CRCLIENTES CURSOR WITH HOLD FOR
+                 SELECT *
+                   FROM CLIENTES_PEPITO_SEG C
+                  WHERE EXISTS (
+                                SELECT 1
+                                FROM SEGUROS_PEPITO_SEG S
+                                JOIN COMPANIAS_SEGUROS CS
+                                ON S.NUMERO_POLIZA = CS.NUMERO_POLIZA
+                                WHERE C.DNI_CL = S.DNI_CL
+                                AND CS.NOMBRE_COMPANIA <> :CA-MAPFRE
+                                )
+                          ORDER BY C.DNI_CL
+           END-EXEC.
+      *
+      * CURSOR DE CLIENTES-PEPITO-SEG QUE MUESTRA LOS CLIENTES QUE
+      * TIENEN SEGUROS NO MAPFRE, PERO EN ESTE CASO ES EL CURSOR DE
+      * REPAGINACION, EL CUAL CON LA CONDICION DEL WHERE HACE
+      * QUE EL CURSOR EMPIEZE EN LEEL SIGUIENTE REGISTRO QUE SE UPDATEO
+      * EN DAREPOS
+      *
+           EXEC SQL
+              DECLARE CRCLIENTES-REP CURSOR WITH HOLD FOR
+                 SELECT *
+                   FROM CLIENTES_PEPITO_SEG C
+                  WHERE EXISTS (
+                                SELECT 1
+                                FROM SEGUROS_PEPITO_SEG S
+                                JOIN COMPANIAS_SEGUROS CS
+                                ON S.NUMERO_POLIZA = CS.NUMERO_POLIZA
+                                   WHERE C.DNI_CL = S.DNI_CL
+                                AND CS.NOMBRE_COMPANIA <> :CA-MAPFRE
+                                )
+                          AND C.DNI_CL > :WK-DNI-CL
+                          ORDER BY C.DNI_CL
+           END-EXEC.
+      *
+      ******************************************************************
+      ** PROCEDURE DIVISION                                           **
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      ** 1000-INICIO                                                  **
+      ** INICIALIZAR VARIABLES                                        **
+      ** APERTURA DE FICHEROS                                         **
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES
+                      DCLCLIENTES-PEPITO-SEG
+                      DCLDAREPOS
+                      WK-VARIABLES
+                      WK-CLAVES
+      *
+           SET SW-NO-FIN-CURSOR          TO TRUE
+           SET SW-NO-FIN-CURSOR-REP      TO TRUE
+           SET SW-NO-REPOS               TO TRUE
+      *
+           MOVE CA-PGM                   TO TB-NOMBRE-PGM
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 1200-CONSULTAR-DAREPOS
+              THRU 1200-CONSULTAR-DAREPOS-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1100-ABRIR-FICHEROS                                          **
+      ** ABRIMOS LOS FICHEROS DE SALIDA Y COMPROBAMOS SU FILE STATUS  **
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN OUTPUT FSALIDA
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE INCIDENCIAS'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FSALIDA'
+              DISPLAY 'FILE STATUS: ' FS-FSALIDA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1200-CONSULTAR-DAREPOS                                       **
+      ******************************************************************
+      *
+       1200-CONSULTAR-DAREPOS.
+      *
+           EXEC SQL
+                SELECT ESTADO
+                      ,VALOR_CLAVE
+                   INTO
+                      :TB-ESTADO
+                     ,:TB-VALOR-CLAVE-TEXT
+                   FROM DAREPOS
+                WHERE NOMBRE_PGM = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+             WHEN CN-0
+               EVALUATE TB-ESTADO
+                  WHEN CA-KO
+                       SET SW-SI-REPOS                TO TRUE
+                       MOVE TB-VALOR-CLAVE-TEXT       TO WK-DNI-CL
+      *
+                  WHEN CA-OK
+                       CONTINUE
+      *
+                  WHEN OTHER
+                       PERFORM 3000-FIN
+                          THRU 3000-FIN-EXIT
+
+               END-EVALUATE
+      *
+             WHEN CN-100
+                  PERFORM 1300-INSERTAR-DAREPOS
+                     THRU 1300-INSERTAR-DAREPOS-EXIT
+      *
+             WHEN OTHER
+                  DISPLAY 'ERROR SELECT DE DAREPOS'
+                  MOVE SQLCODE TO WK-SQLCODE
+                  DISPLAY 'SQLCODE: ' WK-SQLCODE
+                  DISPLAY 'PARRAFO:1150-CONSULTAR-DAREPOS'
+                  DISPLAY 'TABLA: DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       1200-CONSULTAR-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1300-INSERTAR-DAREPOS                                        **
+      ******************************************************************
+      *
+       1300-INSERTAR-DAREPOS.
+      *
+           MOVE CA-KO                    TO TB-ESTADO
+           INITIALIZE TB-VALOR-CLAVE-TEXT
+      *
+           EXEC SQL
+              INSERT INTO DAREPOS VALUES (:TB-NOMBRE-PGM
+                                         ,:TB-ESTADO
+                                         ,:TB-VALOR-CLAVE-TEXT)
+
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+             WHEN CN-0
+                  CONTINUE
+      *
+             WHEN CN-803
+                  DISPLAY 'ERROR AL INSERTAR EN DAREPOS POR REG DUPLI'
+                  DISPLAY 'RETORNO: 99'
+                  DISPLAY 'SQLCODE: 'WK-SQLCODE
+                  DISPLAY 'PARRAFO: INSERTAR-DAREPOS'
+                  DISPLAY 'TABLA  : DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+      *
+             WHEN OTHER
+                  DISPLAY 'ERROR SELECT DE DAREPOS'
+                  MOVE SQLCODE TO WK-SQLCODE
+                  DISPLAY 'SQLCODE: ' WK-SQLCODE
+                  DISPLAY 'PARRAFO:1150-CONSULTAR-DAREPOS'
+                  DISPLAY 'TABLA: DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       1300-INSERTAR-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2000-PROCESO                                                 **
+      ** LLAMAR A LA RUTINA Y LEER EL FICHERO DE ENTRADA HASTA LLEGAR **
+      ** AL FINAL DEL FICHERO                                         **
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           IF SW-SI-REPOS
+              PERFORM 2150-ABRIR-CURSOR-REP
+                 THRU 2150-ABRIR-CURSOR-REP-EXIT
+      *
+              PERFORM 2350-LEER-CURSOR-REP
+                 THRU 2350-LEER-CURSOR-REP-EXIT
+                UNTIL SW-SI-FIN-CURSOR-REP
+      *
+              PERFORM 2450-CERRAR-CURSOR-REP
+                 THRU 2450-CERRAR-CURSOR-REP-EXIT
+      *
+           ELSE
+              PERFORM 2100-ABRIR-CURSOR
+                 THRU 2100-ABRIR-CURSOR-EXIT
+      *
+              PERFORM 2300-LEER-CURSOR
+                 THRU 2300-LEER-CURSOR-EXIT
+                UNTIL SW-SI-FIN-CURSOR
+      *
+              PERFORM 2400-CERRAR-CURSOR
+                 THRU 2400-CERRAR-CURSOR-EXIT
+           END-IF
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2100-ABRIR-CURSOR                                            **
+      ** OPEN DEL CURSOR Y COMPROBAMOS SU SQLCODE                     **
+      ******************************************************************
+      *
+       2100-ABRIR-CURSOR.
+      *
+           EXEC SQL
+                OPEN CRCLIENTES
+           END-EXEC.
+      *
+           IF SQLCODE NOT = 0
+              DISPLAY 'ERROR ABRIR CURSOR'
+              MOVE SQLCODE TO WK-SQLCODE
+              DISPLAY 'SQLCODE: ' WK-SQLCODE
+              DISPLAY '2100-ABRIR-CURSOR'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+      *
+       2100-ABRIR-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2150-ABRIR-CURSOR-REP                                        **
+      ** OPEN DEL CURSOR DE REPOSICIONAMIENTO Y COMPROBAMOS SU SQLCODE**
+      ******************************************************************
+      *
+       2150-ABRIR-CURSOR-REP.
+      *
+           EXEC SQL
+                OPEN CRCLIENTES-REP
+           END-EXEC.
+      *
+           IF SQLCODE NOT = 0
+              DISPLAY 'ERROR ABRIR CURSOR REPOSICION'
+              MOVE SQLCODE TO WK-SQLCODE
+              DISPLAY 'SQLCODE: ' WK-SQLCODE
+              DISPLAY '2150-ABRIR-CURSOR'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+      *
+       2150-ABRIR-CURSOR-REP-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2200-UPDATE-DAREPOS                                          **
+      ******************************************************************
+      *
+       2200-UPDATE-DAREPOS.
+      *
+           MOVE WK-CLAVES             TO TB-VALOR-CLAVE-TEXT
+           MOVE CA-PGM                TO TB-NOMBRE-PGM
+           MOVE CA-KO                 TO TB-ESTADO
+      *
+           EXEC SQL
+                UPDATE DAREPOS
+                   SET VALOR_CLAVE = :TB-VALOR-CLAVE-TEXT
+                      ,ESTADO      = :TB-ESTADO
+                 WHERE NOMBRE_PGM  = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+             WHEN CN-0
+                  ADD 1 TO CN-REG-DAREPOS-UPDATE
+      *
+             WHEN OTHER
+                  DISPLAY 'ERROR UPDATE DE DAREPOS'
+                  MOVE SQLCODE TO WK-SQLCODE
+                  DISPLAY 'SQLCODE: ' WK-SQLCODE
+                  DISPLAY 'PARRAFO: 2200-UPDATE-DAREPOS'
+                  DISPLAY 'TABLA: DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           EXEC SQL COMMIT END-EXEC.
+PRUEBA*
+      *    IF CN-REG-DAREPOS-UPDATE = 5
+      *       PERFORM 3000-FIN
+      *          THRU 3000-FIN-EXIT
+      *    END-IF
+      *
+           .
+      *
+       2200-UPDATE-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2300-LEER-CURSOR                                             **
+      ** LEEMOS REGISTRO DEL CURSOR Y CONTROLAMOS EL SQLCODE          **
+      ******************************************************************
+      *
+       2300-LEER-CURSOR.
+      *
+           EXEC SQL
+               FETCH CRCLIENTES
+                INTO
+                     :TB-DNI-CL
+                    ,:TB-NOMBRE-CL
+                    ,:TB-APELLIDO-1
+                    ,:TB-APELLIDO-2
+                    ,:TB-CLASE-VIA
+                    ,:TB-NOMBRE-VIA
+                    ,:TB-NUMERO-VIA
+                    ,:TB-COD-POSTAL
+                    ,:TB-CIUDAD
+                    ,:TB-TELEFONO
+                    ,:TB-OBSERVACIONES
+           END-EXEC
+
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                    ADD 1                   TO CN-REG-LEIDOS-CURSOR
+      *
+      * MOVEMOS LA CLAVE QUE SE VA A UPDATEAR EN LA TABLA DAREPOS
+      *
+                    MOVE TB-DNI-CL          TO WK-DNI-CL
+      *
+                    PERFORM 9200-ESCRIBIR-FSALIDA
+                       THRU 9200-ESCRIBIR-FSALIDA-EXIT
+      *
+               WHEN 100
+                    SET SW-SI-FIN-CURSOR TO TRUE
+      *
+                    PERFORM 9100-DAREPOS-OK
+                       THRU 9100-DAREPOS-OK-EXIT
+      *
+               WHEN OTHER
+                    DISPLAY 'ERROR DB2'
+                    DISPLAY 'FETCH CRCLIENTES'
+                    DISPLAY 'TABLA: CLIENTES-PEPITO-SEG'
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2300-LEER-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2350-LEER-CURSOR-REP                                         **
+      ** LEEMOS REGISTRO DEL CURSOR DE REPOSICIONAMIENTO Y COMPROBAMOS**
+      ** EL SQLCODE                                                   **
+      ******************************************************************
+      *
+       2350-LEER-CURSOR-REP.
+      *
+           EXEC SQL
+               FETCH CRCLIENTES-REP
+                INTO
+                     :TB-DNI-CL
+                    ,:TB-NOMBRE-CL
+                    ,:TB-APELLIDO-1
+                    ,:TB-APELLIDO-2
+                    ,:TB-CLASE-VIA
+                    ,:TB-NOMBRE-VIA
+                    ,:TB-NUMERO-VIA
+                    ,:TB-COD-POSTAL
+                    ,:TB-CIUDAD
+                    ,:TB-TELEFONO
+                    ,:TB-OBSERVACIONES
+           END-EXEC
+
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                    ADD 1                   TO CN-REG-LEIDOS-CURSOR-REP
+      *
+      *  MOVEMOS LA CLAVE QUE SE VA A UPDATEAR EN LA TABLA DAREPOS
+      *
+                    MOVE TB-DNI-CL          TO WK-DNI-CL
+      *
+                    PERFORM 9200-ESCRIBIR-FSALIDA
+                       THRU 9200-ESCRIBIR-FSALIDA-EXIT
+      *
+               WHEN 100
+                    SET SW-SI-FIN-CURSOR-REP TO TRUE
+      *
+                    PERFORM 9100-DAREPOS-OK
+                       THRU 9100-DAREPOS-OK-EXIT
+      *
+               WHEN OTHER
+                    DISPLAY 'ERROR DB2'
+                    DISPLAY 'FETCH CRCLIENTES-REP'
+                    DISPLAY 'TABLA: CLIENTES-PEPITO-SEG-REP'
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2350-LEER-CURSOR-REP-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2400-CERRAR-CURSOR                                           **
+      ** CLOSE DEL CURSOR Y COMPROBAMOS SU SQLCODE                    **
+      ******************************************************************
+      *
+       2400-CERRAR-CURSOR.
+      *
+           EXEC SQL
+               CLOSE CRCLIENTES
+           END-EXEC.
+      *
+           IF SQLCODE NOT = 0
+              DISPLAY 'ERROR CERRAR CURSOR'
+              MOVE SQLCODE TO WK-SQLCODE
+              DISPLAY 'SQLCODE: ' WK-SQLCODE
+              DISPLAY '1150-ABRIR-CURSOR'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+      *
+       2400-CERRAR-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2450-CERRAR-CURSOR-REP                                       **
+      ** CLOSE DE CURSOR DE REPOSICIONAMIENTO Y COMPROBAMOS SU SQLCODE**
+      ******************************************************************
+      *
+       2450-CERRAR-CURSOR-REP.
+      *
+           EXEC SQL
+               CLOSE CRCLIENTES-REP
+           END-EXEC.
+      *
+           IF SQLCODE NOT = 0
+              DISPLAY 'ERROR CERRAR CURSOR REPOSICION'
+              MOVE SQLCODE TO WK-SQLCODE
+              DISPLAY 'SQLCODE: ' WK-SQLCODE
+              DISPLAY '2450-CERRAR-CURSOR-REP'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+      *
+       2450-CERRAR-CURSOR-REP-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3000-FIN                                                     **
+      ** MOSTRAMOS LOS DATOS DEL PGM                                  **
+      ** FINALIZAMOS EL PGM.                                          **
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3300-MOSTRAR-ESTADISTICAS
+              THRU 3300-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3100-CERRAR-FICHEROS                                         **
+      ** CERRAMOS LOS FICHEROS DE ENTRADA Y SALIDA CONTROLANDO SU     **
+      ** FILE STATUS.                                                 **
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FSALIDA
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO DE INCIDENCIAS'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FSALIDA'
+              DISPLAY 'FILE STATUS: ' FS-FSALIDA
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3300-MOSTRAR-ESTADISTICAS                                    **
+      ******************************************************************
+      *
+       3300-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '*******************************'
+           DISPLAY '* D A T O S   C L I V A C R 2 *'
+           DISPLAY '*******************************'
+           DISPLAY '*REG.LEIDOS CURSOR: ' CN-REG-LEIDOS-CURSOR
+           DISPLAY '*REG.LEIDOS CURSOR REP: ' CN-REG-LEIDOS-CURSOR-REP
+           DISPLAY '*REG.DAREPOS UPDATE: ' CN-REG-DAREPOS-UPDATE
+           DISPLAY '*REG.ESCRITOS SALIDA:  ' CN-REG-ESCRITO-SALIDA
+           DISPLAY '*******************************'
+      *
+           .
+      *
+       3300-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 9100-DAREPOS-OK                                              **
+      ******************************************************************
+      *
+       9100-DAREPOS-OK.
+      *
+           INITIALIZE TB-VALOR-CLAVE-TEXT
+           MOVE CA-OK                 TO TB-ESTADO
+      *
+           EXEC SQL
+                UPDATE DAREPOS
+                   SET VALOR_CLAVE = :TB-VALOR-CLAVE-TEXT
+                      ,ESTADO      = :TB-ESTADO
+                 WHERE NOMBRE_PGM  = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+             WHEN CN-0
+                  CONTINUE
+      *
+             WHEN OTHER
+                  DISPLAY 'ERROR AL PONER OK EN DAREPOS'
+                  MOVE SQLCODE TO WK-SQLCODE
+                  DISPLAY 'SQLCODE: ' WK-SQLCODE
+                  DISPLAY 'PARRAFO: 9100-DAREPOS-OK'
+                  DISPLAY 'TABLA: DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           EXEC SQL COMMIT END-EXEC.
+      *
+           .
+      *
+       9100-DAREPOS-OK-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 9200-ESCRIBIR-FSALIDA                                        **
+      ** ESCRIBIR EL REGISTRO LEIDO EN EL CURSOR EN EL FICHERO DE     **
+      ** SALIDA                                                       **
+      ******************************************************************
+      *
+       9200-ESCRIBIR-FSALIDA.
+      *
+           WRITE REG-FSALIDA FROM DCLCLIENTES-PEPITO-SEG
+
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '9200-ESCRIBIR-FSALIDA'
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+
+           ELSE
+               ADD 1 TO CN-REG-ESCRITO-SALIDA
+               PERFORM 2200-UPDATE-DAREPOS
+                  THRU 2200-UPDATE-DAREPOS-EXIT
+      *
+              INITIALIZE DCLCLIENTES-PEPITO-SEG
+           END-IF
+      *
+           .
+      *
+       9200-ESCRIBIR-FSALIDA-EXIT.
+           EXIT.
+      *

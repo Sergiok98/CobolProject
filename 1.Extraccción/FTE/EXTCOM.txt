@@ -1,0 +1,346 @@
+      ******************************************************************
+      *    I D E N T I F I C A T I O N   D I V I S I O N               *
+      ******************************************************************
+      * PGM QUE USA UN CURSOR PARA LEER LOS DATOS DE LA TABLA
+      * COMPANIAS-SEGUROS Y ESCRIBIR EN UN FICHERO DE SALIDA LOS DATOS
+      * QUE DEVUELVE EL CURSOR
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      *
+       PROGRAM-ID. EXTCOM.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 27/09/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T       D I V I S I O N                 *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+       FILE-CONTROL.
+      *
+           SELECT FSALIDA
+               ASSIGN TO FSALIDA
+               FILE STATUS IS FS-FSALIDA.
+      *
+      ******************************************************************
+      *    D A T A   D I V I S I O N                                   *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *    F I L E   S E C T I O N                                     *
+      ******************************************************************
+      *
+       FD FSALIDA
+           RECORDING MODE IS F.
+       01  REG-FSALIDA             PIC X(68).
+      *
+      ******************************************************************
+      *    W O R K I N G    S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                     PIC X(08) VALUE 'EXTCOM'.
+          05 CA-00                      PIC X(02) VALUE '00'.
+          05 CA-10                      PIC X(02) VALUE '10'.
+      *
+       01 CN-CONSTANTES-NUM.
+          05 CN-0                       PIC 9(1) VALUE 0.
+          05 CN-100                     PIC 9(3) VALUE 100.
+      *
+       01 CN-CONTADORES.
+          05 CN-REG-CONSULTADOS         PIC 9(03).
+          05 CN-REG-ESCRITOS-FSALIDA    PIC 9(03).
+      *
+       01 WK-VARIAVLES.
+          05 WK-SQLCODE                  PIC -999.
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FENTRADA                PIC X(02).
+          05 FS-FSALIDA                 PIC X(02).
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-CURSOR              PIC X(01).
+             88 SW-SI-FIN-CURSOR                 VALUE 'S'.
+             88 SW-NO-FIN-CURSOR                 VALUE 'N'.
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+           EXEC SQL
+               INCLUDE COMSEGTB
+           END-EXEC.
+      *
+      * DECLARACION DEL CURSOR
+      *
+           EXEC SQL
+                DECLARE CRCOMSEG CURSOR FOR
+                  SELECT ID
+                        ,NUMERO_POLIZA
+                        ,NOMBRE_COMPANIA
+                    FROM COMPANIAS_SEGUROS
+           END-EXEC.
+      *
+      ******************************************************************
+      *    PROCEDURE DIVISION                                          *
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE CN-CONTADORES
+                      FS-FILE-STATUS
+                      DCLCOMPANIAS-SEGUROS
+      *
+           SET SW-NO-FIN-CURSOR         TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 1200-ABRIR-CURSOR
+              THRU 1200-ABRIR-CURSOR-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN OUTPUT FSALIDA
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1200-ABRIR-CURSOR
+      ******************************************************************
+      *
+       1200-ABRIR-CURSOR.
+      *
+           EXEC SQL
+                OPEN CRCOMSEG
+           END-EXEC.
+      *
+           IF SQLCODE NOT = CN-0
+              DISPLAY 'ERROR ABRIR CURSOR CRCOMSEG'
+              MOVE SQLCODE TO WK-SQLCODE
+              DISPLAY 'SQLCODE: ' WK-SQLCODE
+              DISPLAY '1200-ABRIR-CURSOR'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+      *
+       1200-ABRIR-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-LEER-CURSOR
+              THRU 2100-LEER-CURSOR-EXIT
+             UNTIL SW-SI-FIN-CURSOR
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-LEER-CURSOR
+      ******************************************************************
+      *
+       2100-LEER-CURSOR.
+      *
+           EXEC SQL
+               FETCH CRCOMSEG
+                INTO
+                     :TB-ID
+                    ,:TB-NUMERO-POLIZA
+                    ,:TB-NOMBRE-COMPANIA
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    ADD 1            TO CN-REG-CONSULTADOS
+                    PERFORM 2500-ESCRIBIR-SALIDA
+                       THRU 2500-ESCRIBIR-SALIDA-EXIT
+               WHEN CN-100
+                    SET SW-SI-FIN-CURSOR TO TRUE
+      *
+               WHEN OTHER
+                    DISPLAY 'ERROR DB2'
+                    DISPLAY 'FETCH CRCOMSEG'
+                    DISPLAY 'TABLA: COMPANIA-SEGUROS'
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2100-LEER-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2500-ESCRIBIR-SALIDA
+      ******************************************************************
+      *
+       2500-ESCRIBIR-SALIDA.
+      *
+           WRITE REG-FSALIDA FROM DCLCOMPANIAS-SEGUROS
+
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '2100-ESCRIBIR-SALIDA'
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+
+           ELSE
+              INITIALIZE DCLCOMPANIAS-SEGUROS
+              ADD 1 TO CN-REG-ESCRITOS-FSALIDA
+           END-IF
+      *
+           .
+      *
+       2500-ESCRIBIR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3000-FIN
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3150-CERRAR-CURSOR
+              THRU 3150-CERRAR-CURSOR-EXIT
+      *
+           PERFORM 3200-ESTADISTICAS
+              THRU 3200-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FSALIDA
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3150-CERRAR-CURSOR
+      ******************************************************************
+      *
+       3150-CERRAR-CURSOR.
+      *
+           EXEC SQL
+               CLOSE CRCOMSEG
+           END-EXEC.
+      *
+           IF SQLCODE NOT = CN-0
+              DISPLAY 'ERROR AL CERRAR EL CURSOR'
+              DISPLAY 'CURSOR: CRCOMSEG'
+              MOVE SQLCODE TO WK-SQLCODE
+              DISPLAY 'SQLCODE: ' WK-SQLCODE
+           END-IF
+      *
+           .
+      *
+       3150-CERRAR-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-ESTADISTICAS
+      ******************************************************************
+      *
+       3200-ESTADISTICAS.
+      *
+           DISPLAY '************************************************'
+           DISPLAY '****    ESTADISTICAS DEL PGM EXTCOM     ********'
+           DISPLAY '************************************************'
+           DISPLAY '*REG. CONSULTADOS: ' CN-REG-CONSULTADOS
+           DISPLAY '*REG. ESCRITOS EN SALIDA: ' CN-REG-ESCRITOS-FSALIDA
+      *
+           .
+      *
+       3200-ESTADISTICAS-EXIT.
+           EXIT.
+      *

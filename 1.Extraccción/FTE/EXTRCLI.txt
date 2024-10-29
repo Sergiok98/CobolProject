@@ -1,0 +1,509 @@
+      ******************************************************************
+      *     I D E N T I F I C A T I O N        D I V I S I O N
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      * RUTINA DE LISTA Y REPAGINACION DE LA TABLA CLIENTES-PEPITO-SEG
+      ******************************************************************
+      *
+       PROGRAM-ID. EXTRCLI.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 30/09/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T      D I V I S I O N                  *
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+      ******************************************************************
+      *   D A T A      D I V I S I O N
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *   W O R K I N G       S T O R A G E      S E C T I O N
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES.
+          05 CA-L                              PIC X(01) VALUE 'L'.
+          05 CA-R                              PIC X(01) VALUE 'R'.
+          05 CA-S                              PIC X(01) VALUE 'S'.
+          05 CA-N                              PIC X(01) VALUE 'N'.
+          05 CA-00                             PIC X(02) VALUE '00'.
+          05 CA-01                             PIC X(02) VALUE '01'.
+          05 CA-02                             PIC X(02) VALUE '02'.
+          05 CA-03                             PIC X(02) VALUE '03'.
+          05 CA-99                             PIC X(02) VALUE '00'.
+          05 CA-88                             PIC X(02) VALUE '00'.
+      *
+       01 CN-CONSTANTES.
+          05 CN-0                              PIC 9(01) VALUE 0.
+          05 CN-3                              PIC 9(01) VALUE 3.
+          05 CN-100                            PIC 9(03) VALUE 100.
+      *
+       01 CN-CONTADORES.
+          05 CONT-LEIDOS                       PIC 9(03).
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-CURSOR                     PIC X(01).
+             88 SI-FIN-CURSOR                  VALUE 'S'.
+             88 NO-FIN-CURSOR                  VALUE 'N'.
+      *
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+      * DCLGEN DE LA TABLA CLIENTES-PEPITO-SEG
+           EXEC SQL
+               INCLUDE CLIPEPTB
+           END-EXEC.
+      ******************************************************************
+      *------------------------CURSOR DE LISTA--------------------------
+           EXEC SQL
+              DECLARE CURSOR-LIST-SEGPEP CURSOR FOR
+                SELECT DNI_CL
+                      ,NOMBRE_CL
+                      ,APELLIDO_1
+                      ,APELLIDO_2
+                      ,CLASE_VIA
+                      ,NOMBRE_VIA
+                      ,NUMERO_VIA
+                      ,COD_POSTAL
+                      ,CIUDAD
+                      ,TELEFONO
+                      ,OBSERVACIONES
+                  FROM CLIENTES_PEPITO_SEG
+                ORDER BY DNI_CL
+           END-EXEC.
+      *----CURSOR DE REPAGINACION --------------------------------------
+      *
+           EXEC SQL
+              DECLARE CURSOR-REPAG-SEGPEP CURSOR FOR
+                SELECT DNI_CL
+                      ,NOMBRE_CL
+                      ,APELLIDO_1
+                      ,APELLIDO_2
+                      ,CLASE_VIA
+                      ,NOMBRE_VIA
+                      ,NUMERO_VIA
+                      ,COD_POSTAL
+                      ,CIUDAD
+                      ,TELEFONO
+                      ,OBSERVACIONES
+                  FROM CLIENTES_PEPITO_SEG
+                 WHERE DNI_CL > :TB-DNI-CL
+                ORDER BY DNI_CL
+           END-EXEC.
+      *
+       LINKAGE SECTION.
+       COPY CPYRCLI.
+      *
+      ******************************************************************
+      *   P R O C E D U R E             D I V I S I O N
+      ******************************************************************
+      *
+       PROCEDURE DIVISION USING CPY-CPYRCLI.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE CN-CONTADORES
+                      DCLCLIENTES-PEPITO-SEG
+                      SALIDA
+                      ERRORES
+                      SALIDA-CONTROL
+      *
+           MOVE CA-00 TO COD-RETORNO
+           MOVE CA-00 TO COD-SUBRETORNO
+           MOVE CA-S  TO MAS-DATOS
+      *
+           PERFORM 1100-VALIDAR-CAMPOS-ENT
+              THRU 1100-VALIDAR-CAMPOS-ENT-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-VALIDAR-CAMPOS-ENT
+      ******************************************************************
+      *
+       1100-VALIDAR-CAMPOS-ENT.
+      *
+           IF OPCION = SPACES OR LOW-VALUES
+              MOVE CA-88                       TO COD-RETORNO
+              MOVE CA-01                       TO COD-SUBRETORNO
+              MOVE '1100-VALIDAR-CAMPOS-ENT'   TO PARRAFO
+              MOVE 'CAMPO OPCION SIN INFORMAR' TO DESCRIPCION
+              MOVE 'CLIENTES-PEPITO-SEG'       TO TABLA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF NUM-OCCURS-E = CN-0 OR NUM-OCCURS-E > 5
+              MOVE CA-88                       TO COD-RETORNO
+              MOVE CA-02                       TO COD-SUBRETORNO
+              MOVE '1100-VALIDAR-CAMPOS-ENT'   TO PARRAFO
+              MOVE 'CAMPO NUM-OCCURS-E CON VALOR INVALIDO'
+                                               TO DESCRIPCION
+              MOVE 'CLIENTES-PEPITO-SEG'       TO TABLA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-VALIDAR-CAMPOS-ENT-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           EVALUATE OPCION
+               WHEN CA-L
+                    PERFORM 2100-ABRIR-CURSOR-LISTA
+                       THRU 2100-ABRIR-CURSOR-LISTA-EXIT
+      *
+                    PERFORM 2200-LEER-CURSOR-LISTA
+                       THRU 2200-LEER-CURSOR-LISTA-EXIT
+                      UNTIL CONT-LEIDOS > NUM-OCCURS-E
+                         OR SI-FIN-CURSOR
+      *
+                    PERFORM 2300-CERRAR-CURSOR-LISTA
+                       THRU 2300-CERRAR-CURSOR-LISTA-EXIT
+      *
+               WHEN CA-R
+                    MOVE DNI-CLI-REP          TO TB-DNI-CL
+      *
+                    PERFORM 2400-ABRIR-CURSOR-REPAG
+                       THRU 2400-ABRIR-CURSOR-REPAG-EXIT
+      *
+                    PERFORM 2500-LEER-CURSOR-REPAG
+                       THRU 2500-LEER-CURSOR-REPAG-EXIT
+                      UNTIL CONT-LEIDOS > NUM-OCCURS-E
+                         OR SI-FIN-CURSOR
+      *
+                    PERFORM 2600-CERRAR-CURSOR-REPAG
+                       THRU 2600-CERRAR-CURSOR-REPAG-EXIT
+      *
+             WHEN OTHER
+                  MOVE CA-88           TO COD-RETORNO
+                  MOVE CA-03           TO COD-SUBRETORNO
+                  MOVE '2000-PROCESO' TO PARRAFO
+                  MOVE 'CAMPO OPCION NO INVALIDO' TO DESCRIPCION
+                  MOVE 'OPCION' TO TABLA
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-ABRIR-CURSOR-LISTA
+      ******************************************************************
+      *
+       2100-ABRIR-CURSOR-LISTA.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           EXEC SQL
+              OPEN CURSOR-LIST-SEGPEP
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE CA-99                 TO COD-RETORNO
+                    MOVE CA-99                 TO COD-SUBRETORNO
+                    MOVE '2100-ABRIR-CURSOR-LISTA'
+                                               TO PARRAFO
+                    MOVE 'ERROR AL ABRIR CURSOR LISTA'
+                                               TO DESCRIPCION
+                    MOVE 'CLIENTES-PEPITO-SEG' TO TABLA
+                    MOVE SQLCODE               TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2100-ABRIR-CURSOR-LISTA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2200-LEER-CURSOR-LISTA
+      ******************************************************************
+      *
+       2200-LEER-CURSOR-LISTA.
+      *
+           EXEC SQL
+              FETCH CURSOR-LIST-SEGPEP
+                INTO :TB-DNI-CL
+                    ,:TB-NOMBRE-CL
+                    ,:TB-APELLIDO-1
+                    ,:TB-APELLIDO-2
+                    ,:TB-CLASE-VIA
+                    ,:TB-NOMBRE-VIA
+                    ,:TB-NUMERO-VIA
+                    ,:TB-COD-POSTAL
+                    ,:TB-CIUDAD
+                    ,:TB-TELEFONO
+                    ,:TB-OBSERVACIONES
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    ADD 1                       TO CONT-LEIDOS
+                    IF CONT-LEIDOS <= NUM-OCCURS-E
+                       PERFORM 9000-INFORMAR-SALIDA
+                          THRU 9000-INFORMAR-SALIDA-EXIT
+                    END-IF
+
+               WHEN CN-100
+                    SET SI-FIN-CURSOR          TO TRUE
+                    MOVE CA-N                  TO MAS-DATOS
+               WHEN OTHER
+                    MOVE CA-99                 TO COD-RETORNO
+                    MOVE CA-99                 TO COD-SUBRETORNO
+                    MOVE '2200-LEER-CURSOR-LISTA'
+                                               TO PARRAFO
+                    MOVE 'ERROR AL LEER CURSOR LISTA'
+                                               TO DESCRIPCION
+                    MOVE 'CLIENTES-PEPITO-SEG' TO TABLA
+                    MOVE SQLCODE               TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2200-LEER-CURSOR-LISTA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2300-CERRAR-CURSOR-LISTA
+      ******************************************************************
+      *
+       2300-CERRAR-CURSOR-LISTA.
+      *
+           EXEC SQL
+              CLOSE CURSOR-LIST-SEGPEP
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE CA-99                 TO COD-RETORNO
+                    MOVE CA-99                 TO COD-SUBRETORNO
+                    MOVE '2300-CERRAR-CURSOR-LISTA'
+                                               TO PARRAFO
+                    MOVE 'ERROR AL CERRAR CURSOR LISTA'
+                                               TO DESCRIPCION
+                    MOVE 'CLIENTES-PEPITO-SEG' TO TABLA
+                    MOVE SQLCODE               TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2300-CERRAR-CURSOR-LISTA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2400-ABRIR-CURSOR-REPAG
+      ******************************************************************
+      *
+       2400-ABRIR-CURSOR-REPAG.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           EXEC SQL
+              OPEN CURSOR-REPAG-SEGPEP
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE CA-99                 TO COD-RETORNO
+                    MOVE CA-99                 TO COD-SUBRETORNO
+                    MOVE '2400-ABRIR-CURSOR-REPAG'
+                                               TO PARRAFO
+                    MOVE 'ERROR AL ABRIR CURSOR REPAG'
+                                               TO DESCRIPCION
+                    MOVE 'CLIENTES-PEPITO-SEG' TO TABLA
+                    MOVE SQLCODE               TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2400-ABRIR-CURSOR-REPAG-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2500-LEER-CURSOR-REPAG
+      ******************************************************************
+      *
+       2500-LEER-CURSOR-REPAG.
+      *
+           EXEC SQL
+              FETCH CURSOR-REPAG-SEGPEP
+                INTO :TB-DNI-CL
+                    ,:TB-NOMBRE-CL
+                    ,:TB-APELLIDO-1
+                    ,:TB-APELLIDO-2
+                    ,:TB-CLASE-VIA
+                    ,:TB-NOMBRE-VIA
+                    ,:TB-NUMERO-VIA
+                    ,:TB-COD-POSTAL
+                    ,:TB-CIUDAD
+                    ,:TB-TELEFONO
+                    ,:TB-OBSERVACIONES
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    ADD 1                       TO CONT-LEIDOS
+                    IF CONT-LEIDOS <= NUM-OCCURS-E
+                       PERFORM 9000-INFORMAR-SALIDA
+                          THRU 9000-INFORMAR-SALIDA-EXIT
+                    END-IF
+
+               WHEN CN-100
+                    SET SI-FIN-CURSOR          TO TRUE
+                    MOVE CA-N                  TO MAS-DATOS
+               WHEN OTHER
+                    MOVE CA-99                 TO COD-RETORNO
+                    MOVE CA-99                 TO COD-SUBRETORNO
+                    MOVE '2500-LEER-CURSOR-REPAG'
+                                               TO PARRAFO
+                    MOVE 'ERROR AL LEER CURSOR REPAG'
+                                               TO DESCRIPCION
+                    MOVE 'CLIENTES-PEPITO-SEG' TO TABLA
+                    MOVE SQLCODE               TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2500-LEER-CURSOR-REPAG-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2600-CERRAR-CURSOR-REPAG
+      ******************************************************************
+      *
+       2600-CERRAR-CURSOR-REPAG.
+      *
+           EXEC SQL
+              CLOSE CURSOR-REPAG-SEGPEP
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE CA-99                 TO COD-RETORNO
+                    MOVE CA-99                 TO COD-SUBRETORNO
+                    MOVE '2600-CERRAR-CURSOR-REPAG'
+                                               TO PARRAFO
+                    MOVE 'ERROR AL CERRAR CURSOR REPAG'
+                                               TO DESCRIPCION
+                    MOVE 'CLIENTES-PEPITO-SEG' TO TABLA
+                    MOVE SQLCODE               TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2600-CERRAR-CURSOR-REPAG-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 9000-INFORMAR-SALIDA
+      *****************************************************************
+      *
+       9000-INFORMAR-SALIDA.
+      *
+           MOVE DCLCLIENTES-PEPITO-SEG TO SALIDA-RUT(CONT-LEIDOS)
+      *
+           MOVE TB-DNI-CL              TO REPAGINACION
+      *
+           ADD 1                       TO NUM-OCCURS-S
+           INITIALIZE DCLCLIENTES-PEPITO-SEG
+      *
+           .
+      *
+       9000-INFORMAR-SALIDA-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 3000-FIN
+      *****************************************************************
+      *
+       3000-FIN.
+      *
+           GOBACK
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *

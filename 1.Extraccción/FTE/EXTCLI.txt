@@ -1,0 +1,312 @@
+      ******************************************************************
+      *     I D E N T I F I C A T I O N        D I V I S I O N
+      ******************************************************************
+      * PGM QUE LLAMA CON PAGINACION A LA RUTINA EXTRCLI QUE TIENE
+      * UN CURSOR QUE DEVUELVE LOS DATOS DE LA TABLA CLIENTES-PEPITO-SEG
+      * Y LOS ESCRIBE EN LA SALIDA
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      *
+       PROGRAM-ID. EXTCLI.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 30/09/2024.
+      *
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+       FILE-CONTROL.
+      *
+           SELECT FSALIDA
+               ASSIGN TO FSALIDA
+               FILE STATUS IS FS-FSALIDA.
+      *
+      ******************************************************************
+      *   D A T A   D I V I S I O N
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *   F I L E       S E C T I O N
+      ******************************************************************
+      *
+       FD FSALIDA
+           RECORDING MODE IS F.
+      *
+       01  REG-FSALIDA             PIC X(710).
+      *
+      ******************************************************************
+      *   W O R K I N G       S T O R A G E      S E C T I O N
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01  FS-FILE-STATUS.
+           05  FS-FSALIDA              PIC X(02).
+      *
+       01  CN-CONTADORES.
+           05  CN-CONT-REG-ESCRITOS          PIC 9(03).
+           05  CN-CONT-LEIDOS                PIC 9(03).
+           05  CN-CONT-LLAMADAS              PIC 9(03).
+      *
+       01  CA-CONSTANTES.
+           05  CA-RUTINA               PIC X(08) VALUE 'EXTRCLI'.
+           05  CA-N                    PIC X(01) VALUE 'N'.
+           05  CA-L                    PIC X(01) VALUE 'L'.
+           05  CA-R                    PIC X(01) VALUE 'R'.
+           05  CA-00                   PIC X(02) VALUE '00'.
+      *
+       01  CN-CONSTANTES.
+           05  CN-5                    PIC 9 VALUE 5.
+           05  CN-1                    PIC 9 VALUE 1.
+      *
+      * DCLGEN DEL LA TABLA CLIENTES-PEPITO-SEG
+           EXEC SQL
+               INCLUDE CLIPEPTB
+           END-EXEC
+      *
+      * DE COMUNICACION CON LA RUTINA EXTRCLI
+       COPY CPYRCLI.
+      *
+      ******************************************************************
+      *   P R O C E D U R E    D I V I S I O N
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL MAS-DATOS = CA-N
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES
+                      DCLCLIENTES-PEPITO-SEG
+                      CPY-CPYRCLI
+      *
+           MOVE CA-L                   TO OPCION
+           MOVE CN-5                   TO NUM-OCCURS-E
+           MOVE CN-1                   TO CN-CONT-LLAMADAS
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS.
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN OUTPUT FSALIDA
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '1100-ABRIR-FICHEROS'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-LLAMAR-RUTINA
+              THRU 2100-LLAMAR-RUTINA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 2100-LLAMAR-RUTINA
+      *****************************************************************
+      *
+       2100-LLAMAR-RUTINA.
+      *
+           CALL CA-RUTINA USING CPY-CPYRCLI
+      *
+           EVALUATE COD-RETORNO
+               WHEN CA-00
+                    DISPLAY 'LLAMADA ' CN-CONT-LLAMADAS
+                    DISPLAY 'OPCION: ' OPCION
+                    DISPLAY '--------------------------------'
+                    PERFORM VARYING CN-CONT-LEIDOS FROM 1 BY 1
+                      UNTIL CN-CONT-LEIDOS > NUM-OCCURS-S
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                                DNI-CL-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                             NOMBRE-CL-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                            APELLIDO-1-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                            APELLIDO-2-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                             CLASE-VIA-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                            NOMBRE-VIA-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                            NUMERO-VIA-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                            COD-POSTAL-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                                CIUDAD-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                              TELEFONO-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                         OBSERVACIONES-RUT(CN-CONT-LEIDOS)
+      *
+      * INFORMAR LOS CAMPOS DE LA DCL CON LOS QUE ESCRIBO CON
+      * LOS DATOS DE LA CPY DE COMUNICACION DE LA RUTINA
+                        MOVE SALIDA-RUT(CN-CONT-LEIDOS)
+                                 TO DCLCLIENTES-PEPITO-SEG
+      *
+                        PERFORM 2200-ESCRIBIR-FSALIDA
+                           THRU 2200-ESCRIBIR-FSALIDA-EXIT
+                    END-PERFORM
+             WHEN OTHER
+                  DISPLAY 'COD. RETORNO: ' COD-RETORNO
+                  DISPLAY 'COD. SUBRETORNO: ' COD-SUBRETORNO
+                  DISPLAY 'PARRAFO: ' PARRAFO
+                  DISPLAY 'DESCRIPCION: ' DESCRIPCION
+                  DISPLAY 'TABLA: ' TABLA
+                  DISPLAY 'SQLCODE: ' SQLCODE-RUT
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           MOVE CA-R                     TO OPCION
+           MOVE CN-5                     TO NUM-OCCURS-E
+           ADD 1                         TO CN-CONT-LLAMADAS
+      *
+           .
+      *
+       2100-LLAMAR-RUTINA-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 2200-ESCRIBIR-FSALIDA
+      *****************************************************************
+      *
+       2200-ESCRIBIR-FSALIDA.
+      *
+           WRITE REG-FSALIDA FROM DCLCLIENTES-PEPITO-SEG
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '2200-ESCRIBIR-FSALIDA'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE DCLCLIENTES-PEPITO-SEG
+              ADD 1              TO CN-CONT-REG-ESCRITOS
+           END-IF
+      *
+           .
+      *
+       2200-ESCRIBIR-FSALIDA-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 3000-FIN
+      *****************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-MOSTRAR-ESTADISTICAS
+              THRU 3200-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS.
+      ******************************************************************
+      *
+        3100-CERRAR-FICHEROS.
+      *
+           CLOSE FSALIDA
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO ENTRADA FSALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '3100-CERRAR-FICHEROS'
+      *
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-MOSTRAR-ESTADISTICAS.
+      ******************************************************************
+      *
+       3200-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '***************************************************'
+           DISPLAY '*****    ESTADISTICAS DEL PGM EXTCLI          *****'
+           DISPLAY '***************************************************'
+           DISPLAY '*REG. LLAMADAS A LA RUTINA: ' CN-CONT-LLAMADAS
+           DISPLAY '*REG. ESCRITOS FSALIDA: ' CN-CONT-REG-ESCRITOS
+           DISPLAY '***************************************************'
+      *
+           .
+      *
+       3200-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *

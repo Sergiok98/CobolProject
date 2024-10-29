@@ -1,0 +1,635 @@
+      ******************************************************************
+      *    I D E N T I F I C A T I O N   D I V I S I O N               *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      * PROGRAMA QUE LEE UN FICHERO Y DIVIDE LA INFORMACION EN TRES
+      * TIPOS VIDA, HOGAR, AUTO Y FORMATEA LA INFORMACION SEGUN EL TIPO
+      ******************************************************************
+      *
+       PROGRAM-ID. TRACLIM.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 03/10/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T       D I V I S I O N                 *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+       FILE-CONTROL.
+      *
+           SELECT FENTRADA
+               ASSIGN TO FENTRADA
+               FILE STATUS IS FS-FENTRADA.
+      *
+           SELECT FVIDA
+               ASSIGN TO FVIDA
+               FILE STATUS IS FS-FVIDA.
+      *
+           SELECT FHOGAR
+               ASSIGN TO FHOGAR
+               FILE STATUS IS FS-FHOGAR.
+      *
+           SELECT FAUTO
+               ASSIGN TO FAUTO
+               FILE STATUS IS FS-FAUTO.
+      *
+      ******************************************************************
+      *    D A T A   D I V I S I O N                                   *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *    F I L E   S E C T I O N                                     *
+      ******************************************************************
+      *
+       FD FENTRADA
+           RECORDING MODE IS F.
+      *
+       01  REG-FENTRADA            PIC X(2544).
+      *
+       FD FVIDA
+           RECORDING MODE IS F.
+      *
+       01  REG-FVIDA               PIC X(543).
+      *
+       FD FHOGAR
+           RECORDING MODE IS F.
+      *
+       01  REG-FHOGAR              PIC X(555).
+      *
+       FD FAUTO
+           RECORDING MODE IS F.
+      *
+       01  REG-FAUTO               PIC X(573).
+      *
+      ******************************************************************
+      *    W O R K I N G    S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                     PIC X(08) VALUE 'TRACLIM'.
+          05 CA-P                       PIC X(08) VALUE 'TRACLI '.
+          05 CA-00                      PIC X(02) VALUE '00'.
+          05 CA-10                      PIC X(02) VALUE '10'.
+          05 CA-01                      PIC X(02) VALUE '01'.
+          05 CA-02                      PIC X(02) VALUE '02'.
+          05 CA-03                      PIC X(02) VALUE '03'.
+          05 CA-VIDA                    PIC X(04) VALUE 'VIDA'.
+          05 CA-HOGAR                   PIC X(05) VALUE 'HOGAR'.
+          05 CA-AUTO                    PIC X(04) VALUE 'AUTO'.
+      *
+       01 CN-CONTADORES.
+          05 CN-CONTADOR                PIC 9(03).
+          05 CN-REG-LEIDOS-FENTRADA     PIC 9(03).
+          05 CN-REG-ESCRITOS-FVIDA      PIC 9(03).
+          05 CN-REG-ESCRITOS-FHOGAR     PIC 9(03).
+          05 CN-REG-ESCRITOS-FAUTO      PIC 9(03).
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FENTRADA                PIC X(02).
+          05 FS-FVIDA                   PIC X(02).
+          05 FS-FHOGAR                  PIC X(02).
+          05 FS-FAUTO                   PIC X(02).
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-FENTRADA            PIC X(01).
+             88 SW-SI-FIN-FENTRADA               VALUE 'S'.
+             88 SW-NO-FIN-FENTRADA               VALUE 'N'.
+      *
+       01 WK-VARIABLES.
+          05 WK-VOID                    PIC X(10).
+          05 WK-EDAD                    PIC 9(3).
+          05 WK-FORMAT                  PIC -Z.ZZZ.ZZZ.ZZZ.999,99.
+      *
+      * ESTRUCTURAS PARA SUBDIVIDIR LOS CAMPOS
+      *
+          05 WK-PRIMA-DIVISA            PIC X(21).
+          05 WK-PRIMA                   PIC S9(13)V9(2).
+          05 WK-DIVISA                  PIC X(03).
+      *
+          05 WK-CONTINENTE-TOTAL        PIC X(21).
+          05 WK-CONTINENTE              PIC S9(13)V9(2).
+          05 WK-DIV-CONTINENTE          PIC X(03).
+      *
+          05 WK-CONTENIDO-TOTAL         PIC X(21).
+          05 WK-CONTENIDO               PIC S9(13)V9(2).
+          05 WK-DIV-CONTENIDO           PIC X(03).
+      *
+      * COPIAS DE LAS DCL CON COMBRES DE CAMPOS MODIFICADOS PARA
+      * EVITAR LA DUPLICACION DE NOMBRES DE CAMPOS
+      *
+      * COPIA DE DCLVIDA-MAPFRE
+      *
+          05 WK-VIDA-MAPFRE.
+             10 WK-POLIZA-V             PIC X(9).
+             10 WK-PRIMA-V              PIC S9(13)V9(2) USAGE COMP-3.
+             10 WK-EDAD-V               PIC S9(9) USAGE COMP.
+             10 WK-COBERTURAS-V.
+                49 WK-COBERTURAS-LEN-V  PIC S9(4) USAGE COMP.
+                49 WK-COBERTURAS-TEXT-V PIC X(500).
+             10 WK-FECHA-INICIO-V       PIC X(10).
+             10 WK-FECHA-VENCIMIENTO-V  PIC X(10).
+      *
+      * COPIA DE DCLHOGAR-MAPFRE
+      *
+          05 WK-HOGAR-MAPFRE.
+             10 WK-POLIZA-H             PIC X(9).
+             10 WK-PRIMA-H              PIC S9(13)V9(2) USAGE COMP-3.
+             10 WK-CONTINENTE-H         PIC S9(13)V9(2) USAGE COMP-3.
+             10 WK-CONTENIDO-H          PIC S9(13)V9(2) USAGE COMP-3.
+             10 WK-COBERTURAS-H.
+                49 WK-COBERTURAS-LEN-H  PIC S9(4) USAGE COMP.
+                49 WK-COBERTURAS-TEXT-H PIC X(500).
+             10 WK-FECHA-INICIO-H       PIC X(10).
+             10 WK-FECHA-VENCIMIENTO-H  PIC X(10).
+      *
+      * COPIA DE DCLAUTO-MAPFRE
+      *
+          05 WK-AUTO-MAPFRE.
+             10 WK-POLIZA-A             PIC X(9).
+             10 WK-PRIMA-A              PIC S9(13)V9(2) USAGE COMP-3.
+             10 WK-EDAD-A               PIC S9(9) USAGE COMP.
+             10 WK-CATEGORIA-A          PIC X(30).
+             10 WK-COBERTURAS-A.
+                49 WK-COBERTURAS-LEN-A  PIC S9(4) USAGE COMP.
+                49 WK-COBERTURAS-TEXT-A PIC X(500).
+             10 WK-FECHA-INICIO-A       PIC X(10).
+             10 WK-FECHA-VENCIMIENTO-A  PIC X(10).
+      *
+      * DCL DE LA TABLA SEGUROS-PEPITO-SEG
+           EXEC SQL
+               INCLUDE SEGPEPTB
+           END-EXEC.
+      *
+      ******************************************************************
+      *    PROCEDURE DIVISION                                          *
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FENTRADA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE CN-CONTADORES
+                      FS-FILE-STATUS
+                      DCLSEGUROS-PEPITO-SEG
+                      WK-VARIABLES
+      *
+           SET SW-NO-FIN-FENTRADA  TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT FENTRADA
+                OUTPUT FVIDA
+                OUTPUT FHOGAR
+                OUTPUT FAUTO
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ENTRADA SEGUROS'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FVIDA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA VIDA-MAPFRE'
+              DISPLAY 'FS-FVIDA: ' FS-FVIDA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FHOGAR NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA HOGAR-MAPFRE'
+              DISPLAY 'FS-FHOGAR: ' FS-FHOGAR
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FAUTO NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA AUTO-MAPFRE'
+              DISPLAY 'FS-FAUTO: ' FS-FAUTO
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           EVALUATE TB-TIPO
+               WHEN CA-01
+                    PERFORM 2100-INFORMAR-VIDA
+                       THRU 2100-INFORMAR-VIDA-EXIT
+      *
+                    PERFORM 2150-ESCRIBIR-VIDA
+                       THRU 2150-ESCRIBIR-VIDA-EXIT
+      *
+                    PERFORM 9000-LEER-FENTRADA
+                       THRU 9000-LEER-FENTRADA-EXIT
+               WHEN CA-02
+                    PERFORM 2200-INFORMAR-HOGAR
+                       THRU 2200-INFORMAR-HOGAR-EXIT
+      *
+                    PERFORM 2250-ESCRIBIR-HOGAR
+                       THRU 2250-ESCRIBIR-HOGAR-EXIT
+      *
+                    PERFORM 9000-LEER-FENTRADA
+                       THRU 9000-LEER-FENTRADA-EXIT
+               WHEN CA-03
+                    PERFORM 2300-INFORMAR-AUTO
+                       THRU 2300-INFORMAR-AUTO-EXIT
+      *
+                    PERFORM 2350-ESCRIBIR-AUTO
+                       THRU 2350-ESCRIBIR-AUTO-EXIT
+      *
+                    PERFORM 9000-LEER-FENTRADA
+                       THRU 9000-LEER-FENTRADA-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-INFORMAR-VIDA
+      ******************************************************************
+      *
+       2100-INFORMAR-VIDA.
+      *
+           MOVE TB-NUMERO-POLIZA       TO WK-POLIZA-V
+           MOVE TB-FECHA-INICIO        TO WK-FECHA-INICIO-V
+           MOVE TB-FECHA-VENCIMIENTO   TO WK-FECHA-VENCIMIENTO-V
+      *
+      * UNSTRING DE COND-PART
+      *
+           UNSTRING TB-COND-PART DELIMITED BY 'PRIMA: ' OR
+           ',EDAD: ' OR ', COBERTURAS: '
+           INTO WK-VOID WK-PRIMA-DIVISA WK-EDAD WK-COBERTURAS-TEXT-V
+      *
+      * FUNCION QUE CUENTA LOS ESPACIOS EN BLANCO POR LA DERECHA
+      * DEL CONTENIDO DE LA VARIABLE Y LUEGO MEDIANTE UN COMPUTE
+      * RESTAMOS AL TAMANYO DE LA VARIABLE PARA SABER LA
+      * LONGITUD DEL CONTENIDO DE LA VARIABLE
+      *
+           INSPECT FUNCTION REVERSE(WK-COBERTURAS-TEXT-V)
+           TALLYING CN-CONTADOR FOR LEADING SPACES
+      *
+           COMPUTE WK-COBERTURAS-LEN-V = LENGTH OF WK-COBERTURAS-TEXT-V
+                                         - CN-CONTADOR
+      *
+           INITIALIZE CN-CONTADOR
+      *
+           MOVE WK-EDAD                TO WK-EDAD-V
+      *
+      * UNSTRING DE PRIMA
+      *
+           UNSTRING WK-PRIMA-DIVISA DELIMITED BY SPACE INTO
+           WK-PRIMA WK-DIVISA
+      *
+           MOVE WK-PRIMA               TO WK-PRIMA-V
+      *
+           .
+      *
+       2100-INFORMAR-VIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2150-ESCRIBIR-VIDA
+      ******************************************************************
+      *
+       2150-ESCRIBIR-VIDA.
+      *
+           WRITE REG-FVIDA FROM WK-VIDA-MAPFRE
+      *
+           IF FS-FVIDA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE VIDA-MAPFRE'
+              DISPLAY 'FS-FVIDA: ' FS-FVIDA
+              DISPLAY '2200-ESCRIBIR-VIDA'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE WK-VARIABLES
+              ADD 1 TO CN-REG-ESCRITOS-FVIDA
+           END-IF
+      *
+           .
+      *
+       2150-ESCRIBIR-VIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2200-INFORMAR-HOGAR
+      ******************************************************************
+      *
+       2200-INFORMAR-HOGAR.
+      *
+           MOVE TB-NUMERO-POLIZA       TO WK-POLIZA-H
+           MOVE TB-FECHA-INICIO        TO WK-FECHA-INICIO-H
+           MOVE TB-FECHA-VENCIMIENTO   TO WK-FECHA-VENCIMIENTO-H
+      *
+      * UNSTRING DE COND-PART
+      *
+           UNSTRING TB-COND-PART DELIMITED BY 'PRIMA: ' OR
+           ',CONTINENTE: ' OR ',CONTENIDO: ' OR '  COBERTURAS: '
+           INTO WK-VOID WK-PRIMA-DIVISA WK-CONTINENTE-TOTAL
+           WK-CONTENIDO-TOTAL WK-COBERTURAS-TEXT-H
+      *
+      * CALCULO DEL TAMANYO DEL CONTENIDO DE LA VARIABLE
+      * WK-COBERTURAS-LEN-H
+      *
+           INSPECT FUNCTION REVERSE(WK-COBERTURAS-TEXT-H)
+           TALLYING CN-CONTADOR FOR LEADING SPACES
+      *
+           COMPUTE WK-COBERTURAS-LEN-H = LENGTH OF WK-COBERTURAS-TEXT-H
+                                         - CN-CONTADOR
+      *
+           INITIALIZE CN-CONTADOR
+      *
+      * UNSTRING DE PRIMA
+      *
+           UNSTRING WK-PRIMA-DIVISA DELIMITED BY SPACE INTO
+           WK-PRIMA WK-DIVISA
+      *
+           MOVE WK-PRIMA                TO WK-PRIMA-H
+      *
+      * UNSTRING DE CONTINENTE
+      *
+           UNSTRING WK-CONTINENTE-TOTAL DELIMITED BY SPACE INTO
+           WK-CONTINENTE WK-DIV-CONTINENTE
+      *
+           MOVE WK-CONTINENTE           TO WK-CONTINENTE-H
+      *
+      * UNSTRING DE CONTENIDO
+      *
+           UNSTRING WK-CONTENIDO-TOTAL DELIMITED BY SPACE INTO
+           WK-CONTENIDO WK-DIV-CONTENIDO
+      *
+           MOVE WK-CONTENIDO            TO WK-CONTENIDO-H
+      *
+           .
+      *
+       2200-INFORMAR-HOGAR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2250-ESCRIBIR-HOGAR
+      ******************************************************************
+      *
+       2250-ESCRIBIR-HOGAR.
+      *
+           WRITE REG-FHOGAR FROM WK-HOGAR-MAPFRE
+      *
+           IF FS-FHOGAR NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO HOGAR-MAPFRE'
+              DISPLAY 'FS-FHOGAR: ' FS-FHOGAR
+              DISPLAY '2300-ESCRIBIR-HOGAR'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE WK-VARIABLES
+              ADD 1 TO CN-REG-ESCRITOS-FHOGAR
+           END-IF
+      *
+           .
+      *
+       2250-ESCRIBIR-HOGAR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2300-INFORMAR-AUTO
+      ******************************************************************
+      *
+       2300-INFORMAR-AUTO.
+      *
+           MOVE TB-NUMERO-POLIZA       TO WK-POLIZA-A
+           MOVE TB-FECHA-INICIO        TO WK-FECHA-INICIO-A
+           MOVE TB-FECHA-VENCIMIENTO   TO WK-FECHA-VENCIMIENTO-A
+      *
+      * UNSTRING DE COND-PART
+      *
+           UNSTRING TB-COND-PART DELIMITED BY 'PRIMA: ' OR
+           ',EDAD: ' OR ',CATEGORIA: ' OR '  COBERTURAS: '
+           INTO WK-VOID WK-PRIMA-DIVISA WK-EDAD WK-CATEGORIA-A
+           WK-COBERTURAS-TEXT-A
+      *
+           MOVE WK-EDAD                 TO WK-EDAD-A
+      *
+      * CALCULO DEL TAMANYO DEL CONTENIDO DE LA VARIABLE
+      * WK-COBERTURAS-LEN-A
+      *
+           INSPECT FUNCTION REVERSE(WK-COBERTURAS-TEXT-A)
+           TALLYING CN-CONTADOR FOR LEADING SPACES
+      *
+           COMPUTE WK-COBERTURAS-LEN-A = LENGTH OF WK-COBERTURAS-TEXT-A
+                                         - CN-CONTADOR
+      *
+           INITIALIZE CN-CONTADOR
+      *
+      * UNSTRING DE PRIMA
+      *
+           UNSTRING WK-PRIMA-DIVISA DELIMITED BY SPACE INTO
+           WK-PRIMA WK-DIVISA
+      *
+           MOVE WK-PRIMA                TO WK-PRIMA-A
+      *
+           .
+      *
+       2300-INFORMAR-AUTO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2350-ESCRIBIR-AUTO
+      ******************************************************************
+      *
+       2350-ESCRIBIR-AUTO.
+      *
+           WRITE REG-FAUTO FROM WK-AUTO-MAPFRE
+      *
+           IF FS-FAUTO NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO AUTO-MAPFRE'
+              DISPLAY 'FS-FAUTO: ' FS-FAUTO
+              DISPLAY '2400-ESCRIBIR-AUTO'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE WK-VARIABLES
+              ADD 1 TO CN-REG-ESCRITOS-FAUTO
+           END-IF
+      *
+           .
+      *
+       2350-ESCRIBIR-AUTO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3000-FIN
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-ESTADISTICAS
+              THRU 3200-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+                 FVIDA
+                 FHOGAR
+                 FAUTO
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE ENTRADA SEGUROS'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FVIDA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA VIDA-MAPFRE'
+              DISPLAY 'FS-FVIDA: ' FS-FVIDA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FHOGAR NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA HOGAR-MAPFRE'
+              DISPLAY 'FS-FHOGAR: ' FS-FHOGAR
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FAUTO NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA AUTO-MAPFRE'
+              DISPLAY 'FS-FAUTO: ' FS-FAUTO
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-ESTADISTICAS
+      ******************************************************************
+      *
+       3200-ESTADISTICAS.
+      *
+           DISPLAY '************************************************'
+           DISPLAY '****    ESTADISTICAS DEL PGM TRACLIM    ********'
+           DISPLAY '************************************************'
+           DISPLAY '*REG. LEIDOS SEGUROS: 'CN-REG-LEIDOS-FENTRADA
+           DISPLAY '*REG. ESCRITOS EN VIDA: 'CN-REG-ESCRITOS-FVIDA
+           DISPLAY '*REG. ESCRITOS EN HOGAR: 'CN-REG-ESCRITOS-FHOGAR
+           DISPLAY '*REG. ESCRITOS EN AUTO: 'CN-REG-ESCRITOS-FAUTO
+      *
+           .
+      *
+       3200-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9000-LEER-FENTRADA
+      ******************************************************************
+      *
+       9000-LEER-FENTRADA.
+      *
+           READ FENTRADA INTO DCLSEGUROS-PEPITO-SEG
+      *
+           EVALUATE FS-FENTRADA
+               WHEN CA-00
+                    ADD 1 TO CN-REG-LEIDOS-FENTRADA
+               WHEN CA-10
+                    SET SW-SI-FIN-FENTRADA TO TRUE
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO SEGUROS-PEPITO'
+                    DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+                    DISPLAY '9000-LEER-FENTRADA'
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FENTRADA-EXIT.
+           EXIT.
+      *

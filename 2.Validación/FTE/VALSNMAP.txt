@@ -1,0 +1,456 @@
+      ******************************************************************
+      *    I D E N T I F I C A T I O N   D I V I S I O N               *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      * PGM QUE FILTRA LOS SEGUROS QUE NO SON MAPFRE MEDIANTE UN
+      * MATCHING A PARTIR DE LOS FICHEROS DE LAS TABLAS DE
+      * COMPANIAS-SEGUROS Y SEGUROS-PEPITO-SEG
+      ******************************************************************
+      *
+       PROGRAM-ID. VALSNMAP.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 30/09/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T       D I V I S I O N                 *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+       FILE-CONTROL.
+           SELECT FCOMPA
+               ASSIGN TO FCOMPA
+               FILE STATUS IS FS-FCOMPA.
+      *
+           SELECT FSEGUR
+               ASSIGN TO FSEGUR
+               FILE STATUS IS FS-FSEGUR.
+      *
+           SELECT FNOMAP
+               ASSIGN TO FNOMAP
+               FILE STATUS IS FS-FNOMAP.
+      *
+           SELECT FSIMAP
+               ASSIGN TO FSIMAP
+               FILE STATUS IS FS-FSIMAP.
+      *
+      ******************************************************************
+      *    D A T A   D I V I S I O N                                   *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *    F I L E   S E C T I O N                                     *
+      ******************************************************************
+      * COMPANIA
+       FD FCOMPA
+           RECORDING MODE IS F.
+      *
+       01  REG-FCOMPA             PIC X(68).
+      * SEGUROS
+       FD FSEGUR
+           RECORDING MODE IS F.
+      *
+       01  REG-FSEGUR              PIC X(2544).
+      * SEGUROS NO MAPFRE
+       FD FNOMAP
+           RECORDING MODE IS F.
+      *
+       01  REG-FNOMAP              PIC X(2544).
+      * SEGUROS MAPFRE
+       FD FSIMAP
+           RECORDING MODE IS F.
+      *
+       01  REG-FSIMAP              PIC X(2544).
+      *
+      ******************************************************************
+      *    W O R K I N G    S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                     PIC X(08) VALUE 'VALSNMAP'.
+          05 CA-00                      PIC X(02) VALUE '00'.
+          05 CA-10                      PIC X(02) VALUE '10'.
+          05 CA-S                       PIC X(01) VALUE 'S'.
+      *
+       01 CN-CONTADORES.
+          05 CN-REG-LEIDOS-FCOMPA       PIC 9(03).
+          05 CN-REG-LEIDOS-FSEGUR       PIC 9(03).
+          05 CN-REG-ESCRITOS-NOMAP      PIC 9(03).
+          05 CN-REG-ESCRITOS-SIMAP      PIC 9(03).
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FCOMPA                  PIC X(02).
+          05 FS-FSEGUR                  PIC X(02).
+          05 FS-FNOMAP                  PIC X(02).
+          05 FS-FSIMAP                  PIC X(02).
+      *
+       01 WK-CLAVES.
+          05 WK-CLAVE-COMPA             PIC X(09).
+          05 WK-CLAVE-SEGUR             PIC X(09).
+      *
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-FCOMPA              PIC X(01).
+             88 SW-SI-FIN-FCOMPA                 VALUE 'S'.
+             88 SW-NO-FIN-FCOMPA                 VALUE 'N'.
+          05 SW-FIN-FSEGUR              PIC X(01).
+             88 SW-SI-FIN-FSEGUR                 VALUE 'S'.
+             88 SW-NO-FIN-FSEGUR                 VALUE 'N'.
+      *
+      * COPIA DE LA DCL DE COMPANIAS-SEGUROS PERO CON NOMBRES DIFERENTES
+      * YA QUE SE REPITEN CAMPOS POR LA RELACION ENTRE TABLAS
+      *
+       01 WK-VARIABLES.
+          05 WK-COMPANIAS-SEGUROS.
+             10 WK-ID                   PIC S9(9) USAGE COMP.
+             10 WK-NUMERO-POLIZA        PIC X(9).
+             10 WK-NOMBRE-COMPANIA      PIC X(55).
+      *
+      * DCL DE LA TABLA SEGUROS-PEPITO-SEG
+           EXEC SQL
+               INCLUDE SEGPEPTB
+           END-EXEC.
+      *
+      ******************************************************************
+      *    PROCEDURE DIVISION                                          *
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FSEGUR AND SW-SI-FIN-FCOMPA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE CN-CONTADORES
+                      FS-FILE-STATUS
+                      DCLSEGUROS-PEPITO-SEG
+                      WK-COMPANIAS-SEGUROS
+                      WK-CLAVES
+      *
+           SET SW-NO-FIN-FSEGUR  TO TRUE
+           SET SW-NO-FIN-FCOMPA  TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FSEGUR
+              THRU 9000-LEER-FSEGUR-EXIT
+      *
+           PERFORM 9100-LEER-FCOMPA
+              THRU 9100-LEER-FCOMPA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT FSEGUR
+                INPUT FCOMPA
+                OUTPUT FNOMAP
+                OUTPUT FSIMAP
+      *
+           IF FS-FSEGUR NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ENTRADA SEGUROS'
+              DISPLAY 'FS-FSEGUR: ' FS-FSEGUR
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FCOMPA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ENTRADA COMPANIAS'
+              DISPLAY 'FS-FCOMPA: ' FS-FCOMPA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FNOMAP NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA NO MAPFRE'
+              DISPLAY 'FS-FNOMAP: ' FS-FNOMAP
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FSIMAP NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA SI MAPFRE'
+              DISPLAY 'FS-FSIMAP: ' FS-FSIMAP
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           IF WK-CLAVE-SEGUR = WK-CLAVE-COMPA
+      *
+              PERFORM 2100-ESCRIBIR-NOMAPFRE
+                 THRU 2100-ESCRIBIR-NOMAPFRE-EXIT
+      *
+              PERFORM 9100-LEER-FCOMPA
+                 THRU 9100-LEER-FCOMPA-EXIT
+      *
+              PERFORM 9000-LEER-FSEGUR
+                 THRU 9000-LEER-FSEGUR-EXIT
+      *
+           ELSE
+      *
+              IF WK-CLAVE-SEGUR < WK-CLAVE-COMPA
+      *
+                 PERFORM 2200-ESCRIBIR-SIMAPFRE
+                    THRU 2200-ESCRIBIR-SIMAPFRE-EXIT
+      *
+                 PERFORM 9000-LEER-FSEGUR
+                    THRU 9000-LEER-FSEGUR-EXIT
+              ELSE
+      *
+                 PERFORM 9100-LEER-FCOMPA
+                    THRU 9100-LEER-FCOMPA-EXIT
+              END-IF
+      *
+           END-IF
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-ESCRIBIR-NOMAPFRE
+      ******************************************************************
+      *
+       2100-ESCRIBIR-NOMAPFRE.
+      *
+           WRITE REG-FNOMAP  FROM DCLSEGUROS-PEPITO-SEG
+      *
+           IF FS-FNOMAP NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO NO MAPFRE'
+              DISPLAY 'FS-FNOMAP: ' FS-FNOMAP
+              DISPLAY '2200-ESCRIBIR-NOMAPFRE'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE DCLSEGUROS-PEPITO-SEG
+              ADD 1 TO CN-REG-ESCRITOS-NOMAP
+           END-IF
+      *
+           .
+      *
+       2100-ESCRIBIR-NOMAPFRE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2200-ESCRIBIR-SIMAPFRE
+      ******************************************************************
+      *
+       2200-ESCRIBIR-SIMAPFRE.
+      *
+           WRITE REG-FSIMAP FROM DCLSEGUROS-PEPITO-SEG
+      *
+           IF FS-FSIMAP NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO SI MAPFRE'
+              DISPLAY 'FS-FSIMAP: ' FS-FSIMAP
+              DISPLAY '2300-ESCRIBIR-SIMAPFRE'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE DCLSEGUROS-PEPITO-SEG
+              ADD 1 TO CN-REG-ESCRITOS-SIMAP
+           END-IF
+      *
+           .
+      *
+       2200-ESCRIBIR-SIMAPFRE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3000-FIN
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-ESTADISTICAS
+              THRU 3200-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FSEGUR
+                 FCOMPA
+                 FNOMAP
+                 FSIMAP
+      *
+           IF FS-FSEGUR NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE ENTRADA DE SEGUROS'
+              DISPLAY 'FS-FSEGUR: ' FS-FSEGUR
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FCOMPA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE ENTRADA DE COMPANIAS'
+              DISPLAY 'FS-FCOMPA: ' FS-FCOMPA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FNOMAP NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA DE NO MAPFRE'
+              DISPLAY 'FS-FNOMAP: ' FS-FNOMAP
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FSIMAP NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA DE SI MAPFRE'
+              DISPLAY 'FS-FSIMAP: ' FS-FSIMAP
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-ESTADISTICAS
+      ******************************************************************
+      *
+       3200-ESTADISTICAS.
+      *
+           DISPLAY '************************************************'
+           DISPLAY '****    ESTADISTICAS DEL PGM VALSNMAP   ********'
+           DISPLAY '************************************************'
+           DISPLAY '*REG. LEIDOS SEGUROS PEPITO: 'CN-REG-LEIDOS-FSEGUR
+           DISPLAY '*REG. LEIDOS COMPANIAS SEG: 'CN-REG-LEIDOS-FCOMPA
+           DISPLAY '*REG. ESCRITOS EN NOMAPFRE: 'CN-REG-ESCRITOS-NOMAP
+           DISPLAY '*REG. ESCRITOS EN SIMAPFRE: 'CN-REG-ESCRITOS-SIMAP
+      *
+           .
+      *
+       3200-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9000-LEER-FSEGUR
+      ******************************************************************
+      *
+       9000-LEER-FSEGUR.
+      *
+           READ FSEGUR INTO DCLSEGUROS-PEPITO-SEG
+      *
+           EVALUATE FS-FSEGUR
+               WHEN CA-00
+                    ADD 1 TO CN-REG-LEIDOS-FSEGUR
+                    MOVE TB-NUMERO-POLIZA TO WK-CLAVE-SEGUR
+               WHEN CA-10
+                    SET SW-SI-FIN-FSEGUR  TO TRUE
+                    MOVE HIGH-VALUES      TO WK-CLAVE-SEGUR
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO'
+                    DISPLAY 'SEGUROS-PEPITO-SEG'
+                    DISPLAY 'FS-FSEGUR: ' FS-FSEGUR
+                    DISPLAY '9000-LEER-FSEGUR'
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FSEGUR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9100-LEER-FCOMPA
+      ******************************************************************
+      *
+       9100-LEER-FCOMPA.
+      *
+           READ FCOMPA INTO WK-COMPANIAS-SEGUROS
+      *
+           EVALUATE FS-FCOMPA
+               WHEN CA-00
+                    ADD 1 TO CN-REG-LEIDOS-FCOMPA
+                    MOVE WK-NUMERO-POLIZA TO WK-CLAVE-COMPA
+               WHEN CA-10
+                    SET SW-SI-FIN-FCOMPA  TO TRUE
+                    MOVE HIGH-VALUES      TO WK-CLAVE-COMPA
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO COMANIAS-SEGUROS'
+                    DISPLAY 'FS-FCOMPA: ' FS-FCOMPA
+                    DISPLAY '9100-LEER-FCOMPA'
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       9100-LEER-FCOMPA-EXIT.
+           EXIT.
+      *

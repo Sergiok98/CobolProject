@@ -1,0 +1,197 @@
+      ******************************************************************
+      *    I D E N T I F I C A T I O N   D I V I S I O N               *
+      ******************************************************************
+      * PGM QUE CONSULTA EL ESTADO DE UN PROGRAM EN LA TABLA DAREPOS   *
+      * Y ENVIA UN RETURN-CODE AL JCL                                  *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      *
+       PROGRAM-ID. SELDAREP.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 10/10/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T       D I V I S I O N                 *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+       FILE-CONTROL.
+      *
+      ******************************************************************
+      *    D A T A   D I V I S I O N                                   *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *    F I L E   S E C T I O N                                     *
+      ******************************************************************
+      *
+      ******************************************************************
+      *    W O R K I N G    S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                     PIC X(08) VALUE 'SELDAREP'.
+          05 CA-KO                      PIC X(02) VALUE 'KO'.
+      *
+       01 WK-VARIAVLES.
+          05 WK-SQLCODE                  PIC -999.
+          05 WK-NOMBRE-PGM               PIC X(08).
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+           EXEC SQL
+               INCLUDE TBDAREPOS
+           END-EXEC.
+      *
+      ******************************************************************
+      *    PROCEDURE DIVISION                                          *
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE DCLDAREPOS
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-CONSULTA
+              THRU 2100-CONSULTA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-CONSULTA
+      ******************************************************************
+      *
+       2100-CONSULTA.
+      *
+           ACCEPT WK-NOMBRE-PGM FROM SYSIN
+      *
+           EXEC SQL
+               SELECT ESTADO
+                  INTO
+                      :TB-ESTADO
+                  FROM DAREPOS
+               WHERE NOMBRE_PGM = :WK-NOMBRE-PGM
+           END-EXEC
+
+      *
+      * SE MUEVE 0 AL RETURN CODE CUANDO EL PROGRAMA NO HA ACABADO EN
+      * SU ANTERIOR EJECUCUION Y 1 SI HA ACABADO O ES LA PRIMERA
+      * EJECUCION DEL PROGRAMA
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                    IF TB-ESTADO = CA-KO
+                       MOVE 0           TO RETURN-CODE
+      *
+                    ELSE
+                       MOVE 1           TO RETURN-CODE
+      *
+                    END-IF
+               WHEN 100
+      *
+                    MOVE 1           TO RETURN-CODE
+      *
+                    DISPLAY 'PGM NO ENCONTRADO'
+                    DISPLAY 'SELECT DAREPOS'
+                    DISPLAY 'TABLA: DAREPOS'
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+                    DISPLAY 'WK-NOMBRE-PGM: ' WK-NOMBRE-PGM
+      *
+               WHEN OTHER
+                    DISPLAY 'ERROR DB2'
+                    DISPLAY 'SELECT DAREPOS'
+                    DISPLAY 'TABLA: DAREPOS'
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+                    DISPLAY 'WK-NOMBRE-PGM: ' WK-NOMBRE-PGM
+
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2100-CONSULTA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3000-FIN
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3200-ESTADISTICAS
+              THRU 3200-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-ESTADISTICAS
+      ******************************************************************
+      *
+       3200-ESTADISTICAS.
+      *
+           DISPLAY '************************************************'
+           DISPLAY '****    ESTADISTICAS DEL PGM SELDAREP   ********'
+           DISPLAY '************************************************'
+           DISPLAY '*PGM CONSULTADO: ' WK-NOMBRE-PGM
+           DISPLAY '*RETURN-CODE: ' RETURN-CODE
+      *
+           .
+      *
+       3200-ESTADISTICAS-EXIT.
+           EXIT.
+      *

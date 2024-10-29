@@ -1,0 +1,581 @@
+      ******************************************************************
+      ** IDENTIFICATION DIVISION                                      **
+      ******************************************************************
+      *
+      ******************************************************************
+      ** PGM QUE A PARTIR DE UN FICHERO DE ENTRADA INSERTA EL LA TABLA**
+      ** AUTO-MAPFRE LOS REGISTROS ESCRIBIENDO EN DESCARTES LOS       **
+      ** REGISTROS QUE DIERON UN SQLCODE DIFERENTE A 0 ADEMAS EL PGM  **
+      ** IMPLEMENTA REPOSICIONAMIENTO                                 **
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. LOADAUT.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 08/10/2024.
+      *
+      ******************************************************************
+      ** ENVIRONMENT DIVISION                                         **
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT FENTRADA ASSIGN TO FENTRADA
+           FILE STATUS FS-FENTRADA.
+      *
+           SELECT FINCIDE ASSIGN TO FINCIDE
+           FILE STATUS FS-FINCIDE.
+      *
+      ******************************************************************
+      ** DATA DIVISION                                                **
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       FD FENTRADA
+           RECORDING MODE IS F.
+       01  REG-FENTRADA               PIC X(573).
+      *
+       FD FINCIDE
+           RECORDING MODE IS F.
+       01  REG-FINCIDE                PIC X(573).
+      *
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01  FS-FILE-STATUS.
+           05  FS-FENTRADA            PIC X(02).
+           05  FS-FINCIDE             PIC X(02).
+      *
+       01  CA-CONSTANTES.
+           05  CA-PGM                 PIC X(08) VALUE 'LOADAUT'.
+           05  CA-KO                  PIC X(02) VALUE 'KO'.
+           05  CA-OK                  PIC X(02) VALUE 'OK'.
+           05  CA-00                  PIC X(02) VALUE '00'.
+           05  CA-0                   PIC X(01) VALUE '0'.
+           05  CA-10                  PIC X(02) VALUE '10'.
+           05  CA-99                  PIC X(02) VALUE '99'.
+      *
+       01  CN-CONSTANTES.
+           05  CN-0                   PIC 9 VALUE 0.
+           05  CN-100                 PIC 9(3) VALUE 100.
+           05  CN-803                 PIC S9(4) VALUE -803.
+      *
+       01  CN-CONTADORES.
+           05  CN-REG-LEIDOS-FENTRADA PIC 9(03).
+           05  CN-REG-DAREPOS-UPDATE  PIC 9(03).
+           05  CN-REG-INSERTADOS      PIC 9(03).
+           05  CN-REG-INCIDENCIAS     PIC 9(03).
+      *
+       01  SW-SWITCHES.
+           05  SW-FIN-FENTRADA        PIC X(01).
+               88  SW-SI-FIN-FENTRADA VALUE 'S'.
+               88  SW-NO-FIN-FENTRADA VALUE 'N'.
+      *
+       01 WK-VARIABLES.
+          05 WK-SQLCODE               PIC -999.
+          05 WK-CLAVE                 PIC X(9).
+      *
+      * DCL DE LA TABLA AUTO MAPFRE
+      *
+           EXEC SQL
+               INCLUDE AUTMAPTB
+           END-EXEC.
+      *
+      * DCL DE LA TABLA DAREPOS
+      *
+           EXEC SQL
+               INCLUDE TBDAREPO
+           END-EXEC.
+      *
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+      ******************************************************************
+      ** PROCEDURE DIVISION                                           **
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FENTRADA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      ** 1000-INICIO                                                  **
+      ** INICIALIZAR VARIABLES                                        **
+      ** APERTURA DE FICHEROS                                         **
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES
+                      DCLAUTO-MAPFRE
+                      DCLDAREPOS
+      *
+           SET SW-NO-FIN-FENTRADA        TO TRUE
+      *
+           MOVE CA-PGM                   TO TB-NOMBRE-PGM
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 1150-CONSULTAR-DAREPOS
+              THRU 1150-CONSULTAR-DAREPOS-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1100-ABRIR-FICHEROS                                          **
+      ** ABRIMOS LOS FICHEROS DE ENTRADA Y SALIDA COMPROBANDO SU      **
+      ** FILE STATUS.                                                 **
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT FENTRADA
+                OUTPUT FINCIDE
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO FENTRADA'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FINCIDE NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE INCIDENCIAS'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FINCIDE'
+              DISPLAY 'FILE STATUS: ' FS-FINCIDE
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1150-CONSULTAR-DAREPOS                                       **
+      ******************************************************************
+      *
+       1150-CONSULTAR-DAREPOS.
+      *
+           EXEC SQL
+                SELECT ESTADO
+                      ,VALOR_CLAVE
+                   INTO
+                      :TB-ESTADO
+                     ,:TB-VALOR-CLAVE-TEXT
+                   FROM DAREPOS
+                WHERE NOMBRE_PGM = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+             WHEN CN-0
+               EVALUATE TB-ESTADO
+                  WHEN CA-KO
+                       PERFORM 9000-LEER-FENTRADA
+                          THRU 9000-LEER-FENTRADA-EXIT
+                         UNTIL WK-CLAVE > TB-VALOR-CLAVE-TEXT
+      *
+                  WHEN CA-OK
+                       PERFORM 9000-LEER-FENTRADA
+                          THRU 9000-LEER-FENTRADA-EXIT
+      *
+                  WHEN OTHER
+                       PERFORM 3000-FIN
+                          THRU 3000-FIN-EXIT
+
+               END-EVALUATE
+      *
+             WHEN CN-100
+                  PERFORM 1160-INSERTAR-DAREPOS
+                     THRU 1160-INSERTAR-DAREPOS-EXIT
+                  PERFORM 9000-LEER-FENTRADA
+                     THRU 9000-LEER-FENTRADA-EXIT
+      *
+             WHEN OTHER
+                  DISPLAY 'ERROR SELECT DE DAREPOS'
+                  MOVE SQLCODE TO WK-SQLCODE
+                  DISPLAY 'SQLCODE: ' WK-SQLCODE
+                  DISPLAY 'PARRAFO:1150-CONSULTAR-DAREPOS'
+                  DISPLAY 'TABLA: DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       1150-CONSULTAR-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1160-INSERTAR-DAREPOS                                        **
+      ******************************************************************
+      *
+       1160-INSERTAR-DAREPOS.
+      *
+           MOVE CA-KO                    TO TB-ESTADO
+           INITIALIZE TB-VALOR-CLAVE-TEXT
+      *
+           EXEC SQL
+              INSERT INTO DAREPOS VALUES (:TB-NOMBRE-PGM
+                                         ,:TB-ESTADO
+                                         ,:TB-VALOR-CLAVE-TEXT)
+
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+             WHEN CN-0
+                  CONTINUE
+      *
+             WHEN CN-803
+                  DISPLAY 'ERROR AL INSERTAR EN DAREPOS POR REG DUPLI'
+                  DISPLAY 'RETORNO: 99'
+                  DISPLAY 'SQLCODE: 'WK-SQLCODE
+                  DISPLAY 'PARRAFO: INSERTAR-DAREPOS'
+                  DISPLAY 'TABLA  : DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+      *
+             WHEN OTHER
+                  DISPLAY 'ERROR SELECT DE DAREPOS'
+                  MOVE SQLCODE TO WK-SQLCODE
+                  DISPLAY 'SQLCODE: ' WK-SQLCODE
+                  DISPLAY 'PARRAFO:1150-CONSULTAR-DAREPOS'
+                  DISPLAY 'TABLA: DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       1160-INSERTAR-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2000-PROCESO                                                 **
+      ** LLAMAR A LA RUTINA Y LEER EL FICHERO DE ENTRADA HASTA LLEGAR **
+      ** AL FINAL DEL FICHERO                                         **
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-INSERTAR-REGISTRO
+              THRU 2100-INSERTAR-REGISTRO-EXIT
+      *
+           PERFORM 2200-UPDATE-DAREPOS
+              THRU 2200-UPDATE-DAREPOS-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2100-INSERTAR-REGISTRO                                       **
+      ** INSERCION DEL REGISTRO LEIDO EN EL FICHERO DE ENTRADA,       **
+      ** Y ESCRIBIR LAS INCIDENCIAS QUE OCURRAN                       **
+      ******************************************************************
+      *
+       2100-INSERTAR-REGISTRO.
+      *
+           EXEC SQL
+               INSERT INTO AUTO_MAPFRE
+                  VALUES (
+                          :TB-POLIZA
+                         ,:TB-PRIMA
+                         ,:TB-EDAD
+                         ,:TB-CATEGORIA
+                         ,:TB-COBERTURAS
+                         ,:TB-FECHA-INICIO
+                         ,:TB-FECHA-VENCIMIENTO
+                  )
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                    ADD 1               TO CN-REG-INSERTADOS
+                    INITIALIZE DCLAUTO-MAPFRE
+      *
+               WHEN -803
+                    DISPLAY 'CLAVE DUPLICADA'
+                    DISPLAY 'INSERT AUTO MAPFRE'
+                    DISPLAY 'TABLA: AUTO MAPFRE'
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+                    DISPLAY 'POLIZA: ' TB-POLIZA
+      *
+                    PERFORM 2150-ESCRIBIR-INCIDENCIA
+                       THRU 2150-ESCRIBIR-INCIDENCIA-EXIT
+      *
+               WHEN OTHER
+                    DISPLAY 'ERROR DB2'
+                    DISPLAY 'INSERT AUTO MAPFRE'
+                    DISPLAY 'TABLA: AUTO MAPFRE'
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+                    DISPLAY 'POLIZA: ' TB-POLIZA
+      *
+                    PERFORM 2150-ESCRIBIR-INCIDENCIA
+                       THRU 2150-ESCRIBIR-INCIDENCIA-EXIT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           .
+      *
+       2100-INSERTAR-REGISTRO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2150-ESCRIBIR-INCIDENCIA
+      ******************************************************************
+      *
+       2150-ESCRIBIR-INCIDENCIA.
+      *
+           WRITE REG-FINCIDE FROM DCLAUTO-MAPFRE
+
+           IF FS-FINCIDE NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE INCIDENCIAS'
+              DISPLAY 'FS-FINCIDE: ' FS-FINCIDE
+              DISPLAY '2150-ESCRIBIR-INCIDENCIA'
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+
+           ELSE
+              INITIALIZE DCLAUTO-MAPFRE
+              ADD 1 TO CN-REG-INCIDENCIAS
+           END-IF
+      *
+           .
+      *
+       2150-ESCRIBIR-INCIDENCIA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2200-UPDATE-DAREPOS                                          **
+      ******************************************************************
+      *
+       2200-UPDATE-DAREPOS.
+      *
+           MOVE WK-CLAVE              TO TB-VALOR-CLAVE-TEXT
+           MOVE CA-PGM                TO TB-NOMBRE-PGM
+           MOVE CA-KO                 TO TB-ESTADO
+      *
+           EXEC SQL
+                UPDATE DAREPOS
+                   SET VALOR_CLAVE = :TB-VALOR-CLAVE-TEXT
+                      ,ESTADO      = :TB-ESTADO
+                 WHERE NOMBRE_PGM  = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+             WHEN CN-0
+                  ADD 1 TO CN-REG-DAREPOS-UPDATE
+      *
+             WHEN OTHER
+                  DISPLAY 'ERROR UPDATE DE DAREPOS'
+                  MOVE SQLCODE TO WK-SQLCODE
+                  DISPLAY 'SQLCODE: ' WK-SQLCODE
+                  DISPLAY 'PARRAFO: 2200-UPDATE-DAREPOS'
+                  DISPLAY 'TABLA: DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           EXEC SQL COMMIT END-EXEC.
+      *
+PRUEBA*    IF CN-REG-DAREPOS-UPDATE = 5
+      *       PERFORM 3000-FIN
+      *          THRU 3000-FIN-EXIT
+      *    END-IF
+      *
+           .
+      *
+       2200-UPDATE-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3000-FIN                                                     **
+      ** MOSTRAMOS LOS DATOS DEL PGM                                  **
+      ** FINALIZAMOS EL PGM.                                          **
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-MOSTRAR-ESTADISTICAS
+              THRU 3200-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3100-CERRAR-FICHEROS                                         **
+      ** CERRAMOS LOS FICHEROS DE ENTRADA Y SALIDA CONTROLANDO SU     **
+      ** FILE STATUS.                                                 **
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+                 FINCIDE
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO DE ENTRADA'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+           END-IF
+      *
+           IF FS-FINCIDE NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO DE INCIDENCIAS'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FINCIDE'
+              DISPLAY 'FILE STATUS: ' FS-FINCIDE
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3200-MOSTRAR-ESTADISTICAS                                    **
+      ** MOSTRAMOS ESTADISTICAS DEL PGM IMPRIMIENTO LOS REG. LEIDOS   **
+      ** DEL FICHERO DE ENTRADA Y LOS REG. ESCRITOS DEL FICH. DE SALIDA*
+      ******************************************************************
+      *
+       3200-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '*******************************'
+           DISPLAY '**D A T O S   L O A D A U T  **'
+           DISPLAY '*******************************'
+           DISPLAY '*REG.LEIDOS FENTRA: ' CN-REG-LEIDOS-FENTRADA
+           DISPLAY '*REG.DAREPOS UPDATE: ' CN-REG-DAREPOS-UPDATE
+           DISPLAY '*REG.INSERTADOS: ' CN-REG-INSERTADOS
+           DISPLAY '*REG.INCIDENCIAS: ' CN-REG-INCIDENCIAS
+           DISPLAY '*******************************'
+      *
+           .
+      *
+       3200-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 9000-LEER-FENTRADA                                           **
+      ** LEEMOS REGISTRO DEL FICHERO FENTRADA CONTROLANDO SU FILE     **
+      ** STATUS.                                                      **
+      ******************************************************************
+      *
+       9000-LEER-FENTRADA.
+      *
+           READ FENTRADA INTO DCLAUTO-MAPFRE
+      *
+           EVALUATE FS-FENTRADA
+               WHEN CA-00
+                    ADD 1               TO CN-REG-LEIDOS-FENTRADA
+                    MOVE TB-POLIZA      TO WK-CLAVE
+      *
+               WHEN CA-10
+                    SET SW-SI-FIN-FENTRADA     TO TRUE
+                    PERFORM 9100-DAREPOS-OK
+                       THRU 9100-DAREPOS-OK-EXIT
+      *
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO FENTRADA'
+                    DISPLAY 'PARRAFO: 9000-LEER-FENTRADA'
+                    DISPLAY 'NOMBRE FICHERO: FENTRADA'
+                    DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FENTRADA-EXIT.
+           EXIT.
+      ******************************************************************
+      ** 9100-DAREPOS-OK                                              **
+      ******************************************************************
+      *
+       9100-DAREPOS-OK.
+      *
+           INITIALIZE TB-VALOR-CLAVE-TEXT
+           MOVE CA-OK                 TO TB-ESTADO
+      *
+           EXEC SQL
+                UPDATE DAREPOS
+                   SET VALOR_CLAVE = :TB-VALOR-CLAVE-TEXT
+                      ,ESTADO      = :TB-ESTADO
+                 WHERE NOMBRE_PGM  = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+             WHEN CN-0
+                  CONTINUE
+      *
+             WHEN OTHER
+                  DISPLAY 'ERROR AL PONER OK EN DAREPOS'
+                  MOVE SQLCODE TO WK-SQLCODE
+                  DISPLAY 'SQLCODE: ' WK-SQLCODE
+                  DISPLAY 'PARRAFO: 9100-DAREPOS-OK'
+                  DISPLAY 'TABLA: DAREPOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           EXEC SQL COMMIT END-EXEC.
+      *
+           .
+      *
+       9100-DAREPOS-OK-EXIT.
+           EXIT.
+      *

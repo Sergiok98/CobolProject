@@ -1,0 +1,474 @@
+      ******************************************************************
+      *    I D E N T I F I C A T I O N   D I V I S I O N               *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      * PGM QUE A PARTIR DE UN FICHERO DE ENTRADA FORMATEA LOS CLIENTES
+      * MAPFRE Y LLAMA A UNA RUTINA QUE ASIGNA UN AGENTE A CADA CLIENTE
+      * Y LOS ESCRIBE CON EL ID DEL CLIENETE YA ASIGNADO EN LA SALIDA
+      ******************************************************************
+      *
+       PROGRAM-ID. TRASEGM.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 04/10/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T       D I V I S I O N                 *
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+       FILE-CONTROL.
+      *
+           SELECT FENTRADA
+               ASSIGN TO FENTRADA
+               FILE STATUS FS-FENTRADA.
+      *
+           SELECT FCLIENTE
+               ASSIGN TO FCLIENTE
+               FILE STATUS FS-FCLIENTE.
+      *
+           SELECT FAGENTE
+               ASSIGN TO FAGENTE
+               FILE STATUS FS-FAGENTE.
+      *
+      ******************************************************************
+      *    D A T A   D I V I S I O N                                   *
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *    F I L E   S E C T I O N N                                   *
+      ******************************************************************
+      *
+       FD FENTRADA
+           RECORDING MODE IS F.
+      *
+       01  REG-FENTRADA               PIC X(710).
+      *
+       FD FCLIENTE
+           RECORDING MODE IS F.
+      *
+       01  REG-FCLIENTE               PIC X(696).
+      *
+       FD FAGENTE
+           RECORDING MODE IS F.
+      *
+       01  REG-FAGENTE                PIC X(112).
+      *
+      ******************************************************************
+      *    W O R K I N G    S T O R A G E                              *
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FENTRADA            PIC X(02).
+          05 FS-FCLIENTE            PIC X(02).
+          05 FS-FAGENTE             PIC X(02).
+      *
+       01 CA-CONSTANTES.
+          05 CA-RUTINA              PIC X(07) VALUE 'RUTAGEN'.
+          05 CA-00                  PIC X(02) VALUE '00'.
+          05 CA-10                  PIC X(02) VALUE '10'.
+          05 CA-99                  PIC X(02) VALUE '99'.
+      *
+       01 CN-CONTADORES.
+          05 CN-CONTADOR            PIC 9(03).
+          05 CN-REG-LEIDOS-FENTRADA PIC 9(03).
+          05 CN-REG-ESCRIT-FCLIENTE PIC 9(03).
+          05 CN-REG-ESCRIT-FAGENTE  PIC 9(03).
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-FENTRADA        PIC X(01).
+             88 SW-SI-FIN-FENTRADA VALUE 'S'.
+             88 SW-NO-FIN-FENTRADA VALUE 'N'.
+      *
+       01 WK-VARIABLES.
+          05 WK-NUMERO-VIA          PIC X(9).
+      *
+      * DCL DEL FICHERO DE ENTRADA CLIENTES-PEPITO
+      *
+           EXEC SQL
+              INCLUDE CLIPEPTB
+           END-EXEC.
+      *
+      * COPY DEL FICHERO DE SALIDA AGENTES-MAPFRE
+      *
+       COPY AGEMAPCP.
+      *
+      * COPY DEL FICHERO DE SALIDA CLIENTES-MAPFRE
+      *
+       COPY CLIMAPCP.
+      *
+      * COPY DE COMUNICACION CON LA RUTINA RUTAGEN
+      *
+       COPY CPYRGEN.
+      *
+      ******************************************************************
+      *  PROCEDURE DIVISION                                            *
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FENTRADA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      *  1000-INICIO                                                   *
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES
+                      DCLCLIENTES-PEPITO-SEG
+                      CPY-CLIMAPCP
+                      CPY-AGEMAPCP
+                      ERRORES-RUT
+                      SALIDA-RUT
+      *
+           SET SW-NO-FIN-FENTRADA        TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *  1100-ABRIR-FICHEROS                                           *
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT  FENTRADA
+                OUTPUT FCLIENTE
+                OUTPUT FAGENTE
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO FENTRADA'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FCLIENTE NOT = CA-00
+      *
+              DISPLAY 'ERROR AL ABRIR EL FICHERO CLIENTES'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FCLIENTE'
+              DISPLAY 'FILE STATUS: ' FS-FCLIENTE
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FAGENTE NOT = CA-00
+      *
+              DISPLAY 'ERROR AL ABRIR EL FICHERO AGENTES'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FAGENTE'
+              DISPLAY 'FILE STATUS: ' FS-FAGENTE
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *  2000-PROCESO                                                  *
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2150-INFORMAR-CLIENTE
+              THRU 2150-INFORMAR-CLIENTE-EXIT
+      *
+           PERFORM 2200-ESCRIBIR-CLIENTE
+              THRU 2200-ESCRIBIR-CLIENTE-EXIT
+      *
+           PERFORM 2100-LLAMAR-RUTINA
+              THRU 2100-LLAMAR-RUTINA-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *  2100-LLAMAR-RUTINA                                            *
+      ******************************************************************
+      *
+       2100-LLAMAR-RUTINA.
+      *
+      * A PARTIR DE LA CUARTA POSICION DEL DNI DEL CLIENTE LA RUTINA
+      * LE ASIGNA UN AGENTE
+           MOVE TB-DNI-CL(4:1)           TO NUM-ALEA
+      *
+           CALL CA-RUTINA USING CPY-RUT-RUTAGEN
+      *
+           EVALUATE RETORNO
+               WHEN CA-00
+                    PERFORM 2300-INFORMAR-AGENTE
+                       THRU 2300-INFORMAR-AGENTE-EXIT
+      *
+                    PERFORM 2350-ESCRIBIR-AGENTE
+                       THRU 2350-ESCRIBIR-AGENTE-EXIT
+      *
+               WHEN OTHER
+                    DISPLAY 'RETORNO    : ' RETORNO
+                    DISPLAY 'SUBRETORNO : ' SUBRETORNO
+                    DISPLAY 'TABLA : ' TABLA
+                    DISPLAY 'PARRAFO-RUT    : ' PARRAFO
+                    DISPLAY 'DESCRIPCION : ' DESCRIPCION
+                    DISPLAY 'NOMBRE-RUT : ' RUTINA
+
+           END-EVALUATE
+      *
+           .
+      *
+       2100-LLAMAR-RUTINA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *  2150-INFORMAR-CLIENTE                                         *
+      ******************************************************************
+      *
+       2150-INFORMAR-CLIENTE.
+      *
+           MOVE TB-DNI-CL                  TO DNI-CLI
+           MOVE TB-TELEFONO                TO TELEFONO-CLI
+           MOVE TB-OBSERVACIONES           TO OBSERVACIONES-CLI
+      *
+      * UNIR LOS CAMPOS QUE FORMAN NOMBRE-CLI
+      *
+           STRING TB-NOMBRE-CL SPACE TB-APELLIDO-1 SPACE TB-APELLIDO-2
+           DELIMITED BY SIZE
+           INTO NOMBRE-CLI
+      *
+      * UNIR LOS CAMPOS QUE FORMAN DIRECCION-CLI
+      *
+           MOVE TB-NUMERO-VIA              TO WK-NUMERO-VIA
+      *
+           STRING TB-CLASE-VIA SPACE TB-NOMBRE-VIA SPACE WK-NUMERO-VIA
+           SPACE TB-COD-POSTAL SPACE TB-CIUDAD
+           DELIMITED BY SIZE
+           INTO DIRECCION-CLI
+      *
+           .
+      *
+       2150-INFORMAR-CLIENTE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2200-ESCRIBIR-CLIENTE                                        **
+      ******************************************************************
+      *
+       2200-ESCRIBIR-CLIENTE.
+      *
+           WRITE REG-FCLIENTE FROM CPY-CLIMAPCP
+      *
+           IF FS-FCLIENTE NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EL FICHERO FCLIENTE'
+              DISPLAY 'PARRAFO: 2200-ESCRIBIR-FSALIDA'
+              DISPLAY 'NOMBRE FICHERO: FCLIENTE'
+              DISPLAY 'FILE STATUS: ' FS-FCLIENTE
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           ELSE
+              INITIALIZE CPY-CLIMAPCP
+              ADD 1                TO CN-REG-ESCRIT-FCLIENTE
+           END-IF
+      *
+           .
+      *
+       2200-ESCRIBIR-CLIENTE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *  2300-INFORMAR-AGENTE                                          *
+      ******************************************************************
+      *
+       2300-INFORMAR-AGENTE.
+      *
+           MOVE NUM-AGE                 TO NUM-AGENTE-AG
+           MOVE DNI-AGE                 TO DNI-AG-AG
+           MOVE NOMBRE                  TO NOMBRE-AG
+           MOVE APE-1                   TO APE-1-AG
+           MOVE APE-2                   TO APE-2-AG
+           MOVE TLF-AGE                 TO TLF-AG
+           MOVE TB-DNI-CL               TO DNI-CLI-AG
+      *
+           .
+      *
+       2300-INFORMAR-AGENTE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2350-ESCRIBIR-AGENTE                                         **
+      ******************************************************************
+      *
+       2350-ESCRIBIR-AGENTE.
+      *
+           WRITE REG-FAGENTE FROM CPY-AGEMAPCP
+      *
+           IF FS-FAGENTE NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EL FICHERO FAGENTE'
+              DISPLAY 'PARRAFO: 2200-ESCRIBIR-FSALIDA'
+              DISPLAY 'NOMBRE FICHERO: FAGENTE'
+              DISPLAY 'FILE STATUS: ' FS-FAGENTE
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           ELSE
+              INITIALIZE CPY-AGEMAPCP
+              ADD 1                TO CN-REG-ESCRIT-FAGENTE
+           END-IF
+      *
+           .
+      *
+       2350-ESCRIBIR-AGENTE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3000-FIN                                                     **
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-MOSTRAR-ESTADISTICAS
+              THRU 3200-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3100-CERRAR-FICHEROS                                         **
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+                 FCLIENTE
+                 FAGENTE
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO FENTRADA'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+           END-IF
+      *
+           IF FS-FCLIENTE NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO FCLIENTE'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FCLIENTE'
+              DISPLAY 'FILE STATUS: ' FS-FCLIENTE
+           END-IF
+      *
+           IF FS-FAGENTE  NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO FAGENTE'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FAGENTE'
+              DISPLAY 'FILE STATUS: ' FS-FAGENTE
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      *
+      ******************************************************************
+      ** 3200-MOSTRAR-ESTADISTICAS                                    **
+      ******************************************************************
+      *
+       3200-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '*******************************'
+           DISPLAY '**D A T O S   T R A S E G M  **'
+           DISPLAY '*******************************'
+           DISPLAY '*REG.LEIDOS FENTRA' CN-REG-LEIDOS-FENTRADA
+           DISPLAY '*REG.ESCRIT FCLIENTE' CN-REG-ESCRIT-FCLIENTE
+           DISPLAY '*REG.ESCRIT FAGENTE' CN-REG-ESCRIT-FAGENTE
+           DISPLAY '*******************************'
+      *
+           .
+      *
+       3200-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 9000-LEER-FENTRADA                                           **
+      ******************************************************************
+      *
+       9000-LEER-FENTRADA.
+      *
+           READ FENTRADA INTO DCLCLIENTES-PEPITO-SEG
+      *
+           EVALUATE FS-FENTRADA
+               WHEN CA-00
+                    ADD 1               TO CN-REG-LEIDOS-FENTRADA
+               WHEN CA-10
+                    SET SW-SI-FIN-FENTRADA     TO TRUE
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO FENTRADA'
+                    DISPLAY 'PARRAFO: 9000-LEER-FENTRADA'
+                    DISPLAY 'NOMBRE FICHERO: FENTRADA'
+                    DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FENTRADA-EXIT.
+           EXIT.

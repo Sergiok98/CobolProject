@@ -1,0 +1,242 @@
+      ******************************************************************
+      ** IDENTIFICATION DIVISION                                      **
+      ******************************************************************
+      *
+      ******************************************************************
+      ** RUTINA QUE A PARTIR DE UN NUMERO A ASIGNA UN AGENTE QUE ESTA **
+      ** GUARDADO EN UNA TABLA WORKING                                **
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. RUTAGEN.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 07/10/2024.
+      *
+      ******************************************************************
+      ** ENVIRONMENT DIVISION                                         **
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *
+      ******************************************************************
+      ** DATA DIVISION                                                **
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES.
+          05 CA-RUTINA                    PIC X(07) VALUE 'RUTAGEN'.
+          05 CA-00                        PIC X(2) VALUE '00'.
+          05 CA-01                        PIC X(2) VALUE '01'.
+          05 CA-99                        PIC X(2) VALUE '99'.
+          05 CA-88                        PIC X(2) VALUE '88'.
+      *
+       01 WK-VARIABLES.
+          05 WK-ACUMULADOR                PIC 9(8)V99.
+      *
+       01 TB-TABLA.
+          05 TABLA-AGENTES         OCCURS 10 TIMES
+                              INDEXED BY TB-INDICE.
+             10 TB-NUM-AGENTE            PIC X(09).
+             10 TB-DNI-AGENTE            PIC X(09).
+             10 TB-NOMBRE-AGENTE         PIC X(25).
+             10 TB-APE-1-AGENTE          PIC X(25).
+             10 TB-APE-2-AGENTE          PIC X(25).
+             10 TB-TLF-AGENTE            PIC X(10).
+      *
+       LINKAGE SECTION.
+      *
+      * COPY DE COMUNICACION CON EL PROGRAMA
+      *
+       COPY CPYRGEN.
+      *
+      ******************************************************************
+      ** PROCEDURE DIVISION                                           **
+      ******************************************************************
+      *
+       PROCEDURE DIVISION USING CPY-RUT-RUTAGEN.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      ** 1000-INICIO                                                  **
+      ** INICIALIZAR VARIABLES Y VALIDAR CAMPO DE ENTRADA             **
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE SALIDA-RUT
+                      ERRORES-RUT
+      *
+           SET TB-INDICE                    TO 1
+      *
+           MOVE CA-00                       TO RETORNO
+      *
+           IF NUM-ALEA = SPACES
+              MOVE CA-99                    TO RETORNO
+              MOVE CA-00                    TO SUBRETORNO
+              MOVE '1000-INICIO'            TO PARRAFO
+              MOVE CA-RUTINA                TO RUTINA
+              MOVE 'NUM-ALEA SIN INFORMAR'  TO DESCRIPCION
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           PERFORM 1100-INFORMAR-TABLA
+              THRU 1100-INFORMAR-TABLA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1100-INFORMAR-TABLA                                          **
+      ** INFORMAR TABLA WORKING AGENTES                               **
+      ******************************************************************
+      *
+       1100-INFORMAR-TABLA.
+      *
+           MOVE '1'                       TO TB-NUM-AGENTE(1)
+           MOVE '48221532V'               TO TB-DNI-AGENTE(1)
+           MOVE 'RAMON'                   TO TB-NOMBRE-AGENTE(1)
+           MOVE 'RUIZ'                    TO TB-APE-1-AGENTE(1)
+           MOVE 'GARCIA'                  TO TB-APE-2-AGENTE(1)
+           MOVE '633188244'               TO TB-TLF-AGENTE(1)
+      *
+           MOVE '2'                       TO TB-NUM-AGENTE(2)
+           MOVE '32445678Y'               TO TB-DNI-AGENTE(2)
+           MOVE 'OFELIA'                  TO TB-NOMBRE-AGENTE(2)
+           MOVE 'ROMERO'                  TO TB-APE-1-AGENTE(2)
+           MOVE 'TORRES'                  TO TB-APE-2-AGENTE(2)
+           MOVE '633210412'               TO TB-TLF-AGENTE(2)
+      *
+           MOVE '3'                       TO TB-NUM-AGENTE(3)
+           MOVE '22114466Z'               TO TB-DNI-AGENTE(3)
+           MOVE 'PATRICIA'                TO TB-NOMBRE-AGENTE(3)
+           MOVE 'NUNIEZ'                  TO TB-APE-1-AGENTE(3)
+           MOVE 'GARCIA'                  TO TB-APE-2-AGENTE(3)
+           MOVE '664401440'               TO TB-TLF-AGENTE(3)
+      *
+           MOVE '4'                       TO TB-NUM-AGENTE(4)
+           MOVE '31314242H'               TO TB-DNI-AGENTE(4)
+           MOVE 'FERNANDO'                TO TB-NOMBRE-AGENTE(4)
+           MOVE 'LOPEZ'                   TO TB-APE-1-AGENTE(4)
+           MOVE 'HARIN'                   TO TB-APE-2-AGENTE(4)
+           MOVE '395001441'               TO TB-TLF-AGENTE(4)
+      *
+           MOVE '5'                       TO TB-NUM-AGENTE(5)
+           MOVE '33447788V'               TO TB-DNI-AGENTE(5)
+           MOVE 'GUSTAVO'                 TO TB-NOMBRE-AGENTE(5)
+           MOVE 'TORRES'                  TO TB-APE-1-AGENTE(5)
+           MOVE 'LOPEZ'                   TO TB-APE-2-AGENTE(5)
+           MOVE '371125040'               TO TB-TLF-AGENTE(5)
+      *
+           MOVE '6'                       TO TB-NUM-AGENTE(6)
+           MOVE '66778899Z'               TO TB-DNI-AGENTE(6)
+           MOVE 'EUSTAQUIO'               TO TB-NOMBRE-AGENTE(6)
+           MOVE 'FERNANDEZ'               TO TB-APE-1-AGENTE(6)
+           MOVE 'LOPEZ'                   TO TB-APE-2-AGENTE(6)
+           MOVE '655814403'               TO TB-TLF-AGENTE(6)
+      *
+           MOVE '7'                       TO TB-NUM-AGENTE(7)
+           MOVE '10101122V'               TO TB-DNI-AGENTE(7)
+           MOVE 'RAMON'                   TO TB-NOMBRE-AGENTE(7)
+           MOVE 'GONZALO'                 TO TB-APE-1-AGENTE(7)
+           MOVE 'GONZALEZ'                TO TB-APE-2-AGENTE(7)
+           MOVE '630554017'               TO TB-TLF-AGENTE(7)
+      *
+           MOVE '8'                       TO TB-NUM-AGENTE(8)
+           MOVE '23457892H'               TO TB-DNI-AGENTE(8)
+           MOVE 'ANGEL'                   TO TB-NOMBRE-AGENTE(8)
+           MOVE 'GARCIA'                  TO TB-APE-1-AGENTE(8)
+           MOVE 'TORRES'                  TO TB-APE-2-AGENTE(8)
+           MOVE '632254769'               TO TB-TLF-AGENTE(8)
+      *
+           MOVE '9'                       TO TB-NUM-AGENTE(9)
+           MOVE '56723418Y'               TO TB-DNI-AGENTE(9)
+           MOVE 'LAURA'                   TO TB-NOMBRE-AGENTE(9)
+           MOVE 'TOMILLO'                 TO TB-APE-1-AGENTE(9)
+           MOVE 'RUIZ'                    TO TB-APE-2-AGENTE(9)
+           MOVE '622014778'               TO TB-TLF-AGENTE(9)
+      *
+           MOVE '10'                      TO TB-NUM-AGENTE(10)
+           MOVE '11254892R'               TO TB-DNI-AGENTE(10)
+           MOVE 'JUAN'                    TO TB-NOMBRE-AGENTE(10)
+           MOVE 'MORANT'                  TO TB-APE-1-AGENTE(10)
+           MOVE 'VALERA'                  TO TB-APE-2-AGENTE(10)
+           MOVE '671558490'               TO TB-TLF-AGENTE(10)
+      *
+           .
+      *
+       1100-INFORMAR-TABLA-EXIT.
+           EXIT.
+      *
+      *
+      ******************************************************************
+      ** 2000-PROCESO                                                 **
+      ** BUSCAR EN LA TABLA LA CONINCIDENCIA DEL NUMERO DE ENTRADA    **
+      ** CON EL AGENTE                                                **
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           SEARCH TABLA-AGENTES
+               AT END
+                  MOVE CA-88                   TO RETORNO
+                  MOVE CA-01                   TO SUBRETORNO
+                  MOVE '2000-PROCESO'          TO PARRAFO
+                  MOVE 'AGENTE NO ENCONTRADO'  TO DESCRIPCION
+                  MOVE 'TABLA-AGENTES'         TO TABLA
+                  MOVE CA-RUTINA               TO RUTINA
+      *
+               WHEN NUM-ALEA = TB-NUM-AGENTE(TB-INDICE)
+                  MOVE TB-NUM-AGENTE(TB-INDICE)    TO NUM-AGE
+                  MOVE TB-DNI-AGENTE(TB-INDICE)    TO DNI-AGE
+                  MOVE TB-NOMBRE-AGENTE(TB-INDICE) TO NOMBRE
+                  MOVE TB-APE-1-AGENTE(TB-INDICE)  TO APE-1
+                  MOVE TB-APE-2-AGENTE(TB-INDICE)  TO APE-2
+                  MOVE TB-TLF-AGENTE(TB-INDICE)    TO TLF-AGE
+           END-SEARCH
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      *
+      ******************************************************************
+      ** 3000-FIN                                                     **
+      ** FINALIZAMOS EL PGM.                                          **
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           GOBACK
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
