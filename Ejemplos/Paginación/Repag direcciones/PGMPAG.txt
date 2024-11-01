@@ -1,0 +1,331 @@
+      ******************************************************************
+      *     I D E N T I F I C A T I O N        D I V I S I O N
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      * DESCRIPCION DEL PGM: PGM QUE A PARTIR DEL FICHERO DE ENTRADA
+      * DE SOCIOS, GENERA DOS FICHEROS DE SALIDA, CON LA INFORMACION
+      * DE LOS SOCIOS VIP (FICHERO 1) Y LA INFORMACION DE LOS SOCIOS
+      * NO VIP (FICHERO 2).
+      ******************************************************************
+      *
+       PROGRAM-ID. PGMPAG.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 23/09/2024.
+      *
+      ******************************************************************
+      *
+      *   E N V I R O N M E N T              D I V I S I O N
+      *   ---------------------              ---------------
+      *
+      * DEFINIR LOS FICHEROS DE ENTRADA Y SALIDA QUE VAN A SER USADOS
+      * DENTRO DEL PGM COBOL. RELACIONAR LOS NOMBRES LOGICOS DE LOS
+      * FICHEROS EN EL PGRAMA CON NOMBRES DE LOS FICHEROS DE LOS JCLS.
+      * DOS SECCIONES:
+      *     - CONFIGURATION SECTION
+      *       DEFINIR EL NOMBRE DE LOS PROCESADORES DONDE SE COMPILA Y
+      *       EJECUTA EL PGM (NO ES OBLIGATORIO).
+      *     - INPUT-OUTPUT SECTION
+      *       DEFINIR LOS DISPOSITIVOS PERIFERICOS (IMPRESORAS, ETC)
+      *       SE DEFINEN TAMBIEN LOS FICHEROS DE E/S QUE SE USARAN EN EL
+      *       PRGRAMA.
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *
+           SELECT FSALIDA   ASSIGN TO FSALIDA
+           FILE STATUS IS FS-FSALIDA.
+      *
+      ******************************************************************
+      *   D A T A                D I V I S I O N
+      *   --------------------------------------
+      *
+      * IDENTIFICA LOS NOMBRES DE DATOS UTILIZADOS EN EL PGM.
+      * CONTIENE 3 SECCIONES:
+      *      - FILE SECTION.
+      *        DESCRIBIR LOS FICHEROS DE ENTRADA Y SALIDA QUE SE USAN
+      *        EN EL PGM COBOL.
+      *      - WORKING STORAGE SECTION.
+      *        DEFINIR LOS CAMPOS DE TRABAJO NECESARIOS PARA EL PGM.
+      *        (VARIABLES, CONSTANTES, ACUMULADORES, CONTADORES,
+      *         SWITHCHES, COPYS, DCLGENS, TABLAS INTERNAS, CURSORES...
+      *      - LINKAGE SECTION.
+      *        SE USARA CUANDO EL PGM SEA DE TIPO RUTINA, YA QUE ES LA
+      *        ZONA QUE SIRVE COMO COMUNICACION CON EL PGM QUE LO INVOCA
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *   F I L E       S E C T I O N
+      ******************************************************************
+      *
+       FD FSALIDA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FSALIDA.
+      *
+       01  REG-FSALIDA             PIC X(76).
+      *
+      ******************************************************************
+      *   W O R K I N G       S T O R A G E      S E C T I O N
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *LUGAR DONDE DECLARAMOS CONSTANTES, VARIABLES, COPYS, SWITHCHES
+       01  FS-FILE-STATUS.
+           05  FS-FSALIDA              PIC X(02).
+      *
+       01  CN-CONTADORES.
+           05  CN-CONT-REG-ESCRITOS          PIC 9(03).
+           05  CN-CONT-LEIDOS                PIC 9(03).
+           05  CN-CONT-LLAMADAS              PIC 9(03).
+      *
+       01  CA-CONSTANTES.
+           05  CA-RUTINA               PIC X(08) VALUE 'RUTPAG'.
+           05  CA-N                    PIC X(01) VALUE 'N'.
+           05  CA-L                    PIC X(01) VALUE 'L'.
+           05  CA-R                    PIC X(01) VALUE 'R'.
+           05  CA-00                   PIC X(02) VALUE '00'.
+      *
+      * DCLGEN DEL LA TABLA DIRECCIONES
+           EXEC SQL
+               INCLUDE TBDIREC
+           END-EXEC
+      *
+      * DE COMUNICACION CON LA RUTINA RUTPAG
+       COPY CPYRPAG.
+      *
+      ******************************************************************
+      *   P R O C E D U R E             D I V I S I O N
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL MAS-DATOS = CA-N
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES
+                      DCLDIRECCIONES
+                      CPYRPAG
+      *
+           MOVE CA-L                   TO OPCION
+           MOVE 5                      TO NUM-OCCURS-E
+           MOVE 1                      TO CN-CONT-LLAMADAS
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS.
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN OUTPUT FSALIDA
+      *
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '1100-ABRIR-FICHEROS'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-LLAMAR-RUTINA
+              THRU 2100-LLAMAR-RUTINA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 2100-LLAMAR-RUTINA
+      *****************************************************************
+      *
+       2100-LLAMAR-RUTINA.
+      *
+           CALL CA-RUTINA USING CPYRPAG
+      *
+           EVALUATE COD-RETORNO
+               WHEN CA-00
+                    DISPLAY 'LLAMADA ' CN-CONT-LLAMADAS
+                    DISPLAY 'OPCION: ' OPCION
+                    DISPLAY '--------------------------------'
+                    PERFORM VARYING CN-CONT-LEIDOS FROM 1 BY 1
+                      UNTIL CN-CONT-LEIDOS > NUM-OCCURS-S
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                             POBLACION-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                                  TIPO-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                             DIRECCION-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                                PLANTA-RUT(CN-CONT-LEIDOS)
+                        DISPLAY 'REG ' CN-CONT-LEIDOS ': '
+                                PUERTA-RUT(CN-CONT-LEIDOS)
+                    MOVE POBLACION-RUT(CN-CONT-LEIDOS) TO
+                             TB-POBLACION
+                    MOVE TIPO-RUT(CN-CONT-LEIDOS) TO
+                             TB-TIPO
+                    MOVE DIRECCION-RUT(CN-CONT-LEIDOS) TO
+                             TB-DIRECCION
+                    MOVE PLANTA-RUT(CN-CONT-LEIDOS) TO
+                             TB-PLANTA
+                    MOVE PUERTA-RUT(CN-CONT-LEIDOS) TO
+                             TB-PUERTA
+                        PERFORM 2200-ESCRIBIR-FSALIDA
+                           THRU 2200-ESCRIBIR-FSALIDA-EXIT
+                    END-PERFORM
+             WHEN OTHER
+                  DISPLAY 'COD. RETORNO: ' COD-RETORNO
+                  DISPLAY 'COD. SUBRETORNO: ' COD-SUBRETORNO
+                  DISPLAY 'PARRAFO: ' PARRAFO
+                  DISPLAY 'DESCRIPCION: ' DESCRIPCION
+                  DISPLAY 'TABLA: ' TABLA
+                  DISPLAY 'SQLCODE: ' SQLCODE-RUT
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           MOVE CA-R                     TO OPCION
+           MOVE 5                        TO NUM-OCCURS-E
+           ADD 1                         TO CN-CONT-LLAMADAS
+      *
+           .
+      *
+       2100-LLAMAR-RUTINA-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 2200-ESCRIBIR-FSALIDA
+      *****************************************************************
+      *
+       2200-ESCRIBIR-FSALIDA.
+      *
+           WRITE REG-FSALIDA FROM DCLDIRECCIONES
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '2200-ESCRIBIR-FSALIDA'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE DCLDIRECCIONES
+              ADD 1              TO CN-CONT-REG-ESCRITOS
+           END-IF
+      *
+           .
+      *
+       2200-ESCRIBIR-FSALIDA-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 3000-FIN
+      *****************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-MOSTRAR-ESTADISTICAS
+              THRU 3200-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS.
+      ******************************************************************
+      *
+        3100-CERRAR-FICHEROS.
+      *
+           CLOSE FSALIDA
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO ENTRADA FSALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '3100-CERRAR-FICHEROS'
+      *
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-MOSTRAR-ESTADISTICAS.
+      ******************************************************************
+      *
+       3200-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '***************************************************'
+           DISPLAY '*****    ESTADISTICAS DEL PGM PGMPAG          *****'
+           DISPLAY '***************************************************'
+           DISPLAY '*REG. ESCRITOS FSALIDA:    ' CN-CONT-REG-ESCRITOS
+           DISPLAY '***************************************************'
+      *
+           .
+      *
+       3200-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *

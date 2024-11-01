@@ -1,0 +1,651 @@
+      ******************************************************************
+      *    I D E N T I F I C A T I O N   D I V I S I O N               *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      *
+       PROGRAM-ID. PGMHOSPI.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 13/08/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T       D I V I S I O N                 *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      * OBLIGATORIO, PARA DECLARAR LOS FICHEROS DE ENTRADA Y SALIDA
+           SELECT FMEDICO
+               ASSIGN TO FMEDICO
+               FILE STATUS IS FS-FMEDICO.
+      *
+           SELECT FPACIEN
+               ASSIGN TO FPACIEN
+               FILE STATUS IS FS-FPACIEN.
+      *
+           SELECT FMAPFRE
+               ASSIGN TO FMAPFRE
+               FILE STATUS IS FS-FMAPFRE.
+      *
+           SELECT FASISA
+               ASSIGN TO FASISA
+               FILE STATUS IS FS-FASISA.
+      *
+           SELECT FSANITAS
+               ASSIGN TO FSANITAS
+               FILE STATUS IS FS-FSANITAS.
+      *
+           SELECT FNOSEG
+               ASSIGN TO FNOSEG
+               FILE STATUS IS FS-FNOSEG.
+      *
+      ******************************************************************
+      *    D A T A   D I V I S I O N                                   *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *    F I L E   S E C T I O N                                     *
+      ******************************************************************
+      *
+       FD FMEDICO
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FMEDICO.
+      *
+       01  REG-FMEDICO             PIC X(115).
+      *
+       FD FPACIEN
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FPACIEN.
+
+       01  REG-FPACIEN             PIC X(111).
+      *
+       FD FMAPFRE
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FMAPFRE.
+
+       01  REG-FMAPFRE             PIC X(131).
+      *
+       FD FASISA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FASISA.
+
+       01  REG-FASISA              PIC X(131).
+      *
+       FD FSANITAS
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FSANITAS.
+
+       01  REG-FSANITAS            PIC X(131).
+      *
+       FD FNOSEG
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FNOSEG.
+
+       01  REG-FNOSEG              PIC X(131).
+      *
+      ******************************************************************
+      *    W O R K I N G    S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      * LUGAR DONDE DECLARAMOS CONSTANTES, VARIABLES, COPYS, SWITCHES..
+      * CONSTANTES ALFANUMERICAS
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                     PIC X(08) VALUE 'PGMTRAN'.
+          05 CA-00                      PIC X(02) VALUE '00'.
+          05 CA-10                      PIC X(02) VALUE '10'.
+          05 CA-S                       PIC X(01) VALUE 'S'.
+          05 CA-MAPFRE                  PIC X(06) VALUE 'MAPFRE'.
+          05 CA-ASISA                   PIC X(05) VALUE 'ASISA'.
+          05 CA-SANITAS                 PIC X(07) VALUE 'SANITAS'.
+      *
+       01 CN-CONTADORES.
+          05 CN-REG-LEIDOS-FMEDICO      PIC 9(03).
+          05 CN-REG-LEIDOS-FPACIEN      PIC 9(03).
+          05 CN-REG-ESCRITOS-FMAPFRE    PIC 9(03).
+          05 CN-REG-ESCRITOS-FASISA     PIC 9(03).
+          05 CN-REG-ESCRITOS-FSANITAS   PIC 9(03).
+          05 CN-REG-ESCRITOS-FNOSEG     PIC 9(03).
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FMEDICO                 PIC X(02).
+          05 FS-FPACIEN                 PIC X(02).
+          05 FS-FMAPFRE                 PIC X(02).
+          05 FS-FASISA                  PIC X(02).
+          05 FS-FSANITAS                PIC X(02).
+          05 FS-FNOSEG                  PIC X(02).
+      *
+       01 WK-CLAVES.
+          05 WK-CLAVE-MEDICO            PIC X(06).
+          05 WK-CLAVE-PACIEN            PIC X(06).
+      *
+       01 WK-FECHAS.
+          05 WK-FECHA-ING               PIC 9(08).
+          05 WK-FECHA-SYS               PIC 9(08).
+      *
+       01 VA-FECHA-INGRESO.
+          05 VN-DIA-ING                 PIC 9(02).
+          05 FILLER                     PIC X(01).
+          05 VN-MES-ING                 PIC 9(02).
+          05 FILLER                     PIC X(01).
+          05 VN-ANYO-ING                PIC 9(04).
+      *
+       01 VA-FECHA-SYSIN.
+          05 VN-DIA                     PIC 9(02).
+          05 FILLER                     PIC X(01).
+          05 VN-MES                     PIC 9(02).
+          05 FILLER                     PIC X(01).
+          05 VN-ANYO                    PIC 9(04).
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-FMEDICO             PIC X(01).
+             88 SW-SI-FIN-FMEDICO                VALUE 'S'.
+             88 SW-NO-FIN-FMEDICO                VALUE 'N'.
+          05 SW-FIN-FPACIEN             PIC X(01).
+             88 SW-SI-FIN-FPACIEN                VALUE 'S'.
+             88 SW-NO-FIN-FPACIEN                VALUE 'N'.
+      *
+       COPY CPYMEDI.
+      *
+       COPY CPYPACI.
+      * CPY DE SALIDA
+       COPY CPYHOSPI.
+      *
+      ******************************************************************
+      *    PROCEDURE DIVISION                                          *
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FMEDICO AND SW-SI-FIN-FPACIEN
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE CN-CONTADORES
+                      FS-FILE-STATUS
+                      DATOS-MEDICO
+                      DATOS-PACIENTE
+                      DATOS-PACIENTE-S
+                      WK-CLAVES
+                      WK-FECHAS
+      *
+           SET SW-NO-FIN-FMEDICO TO TRUE
+           SET SW-NO-FIN-FPACIEN TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FMEDICO
+              THRU 9000-LEER-FMEDICO-EXIT
+      *
+           PERFORM 9100-LEER-FPACIEN
+              THRU 9100-LEER-FPACIEN-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT FMEDICO
+                INPUT FPACIEN
+                OUTPUT FMAPFRE
+                OUTPUT FASISA
+                OUTPUT FSANITAS
+                OUTPUT FNOSEG
+      *
+           IF FS-FMEDICO NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ENTRADA MEDICOS'
+              DISPLAY 'FS-FMEDICO: ' FS-FMEDICO
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FPACIEN NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ENTRADA DE PACIENTE'
+              DISPLAY 'FS-FPACIEN: ' FS-FPACIEN
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FMAPFRE NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA DE MAPFRE'
+              DISPLAY 'FS-FMAPFRE: ' FS-FMAPFRE
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FASISA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA DE ASISA'
+              DISPLAY 'FS-FASISA: ' FS-FASISA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FSANITAS NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA DE SANITAS'
+              DISPLAY 'FS-FSANITAS: ' FS-FSANITAS
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FNOSEG NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA DE NOSEG'
+              DISPLAY 'FS-FNOSEG: ' FS-FNOSEG
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           IF WK-CLAVE-MEDICO = WK-CLAVE-PACIEN
+      *
+              PERFORM 2100-INFORMAR-SALIDA
+                 THRU 2100-INFORMAR-SALIDA-EXIT
+      *
+              PERFORM 9100-LEER-FPACIEN
+                 THRU 9100-LEER-FPACIEN-EXIT
+      *
+           ELSE
+      *
+              IF WK-CLAVE-MEDICO < WK-CLAVE-PACIEN
+      *
+                 PERFORM 9000-LEER-FMEDICO
+                    THRU 9000-LEER-FMEDICO-EXIT
+              ELSE
+      *
+                 PERFORM 9100-LEER-FPACIEN
+                    THRU 9100-LEER-FPACIEN-EXIT
+              END-IF
+      *
+           END-IF
+      *
+
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-INFORMAR-SALIDA
+      ******************************************************************
+      *
+       2100-INFORMAR-SALIDA.
+      *
+           MOVE COD-PACIENTE            TO  COD-PACIENTE-S
+           MOVE COD-COLEGIADO           TO  COD-MEDICO-S
+           MOVE NOMBRE-PACI             TO  NOMBRE-S
+           MOVE APELLIDOS-PACI          TO  APELLIDOS-S
+           MOVE ESPECIALIZACION         TO  ESPACIALIZACION-MED
+           MOVE NIF-PACI                TO  NIF-S
+           MOVE FECHA-INGRESO           TO  FECHA-INGRESO-S
+           MOVE PLANTA                  TO  PLANTA-S
+           MOVE HABITACION              TO  HABITACION-S
+           MOVE CAMA                    TO  CAMA-S
+      *
+      * UNIR LA FECHA DE INGRESO EN UNA SOLA VARIABLE
+           MOVE FECHA-INGRESO           TO VA-FECHA-INGRESO
+           STRING VN-ANYO-ING DELIMITED BY SIZE
+                  VN-MES-ING DELIMITED BY SIZE
+                  VN-DIA-ING DELIMITED BY SIZE
+                  INTO WK-FECHA-ING
+      *
+      * UNIR LA FECHA DADA POR SYSIN EN UNA SOLA VARIABLE
+           ACCEPT VA-FECHA-SYSIN        FROM SYSIN
+           STRING VN-ANYO DELIMITED BY SIZE
+                  VN-MES DELIMITED BY SIZE
+                  VN-DIA DELIMITED BY SIZE
+                  INTO WK-FECHA-SYS
+      *
+      * CALCULO DE LA DIFERENCIA DE DIAS
+           COMPUTE DIAS-INGRESO = FUNCTION INTEGER-OF-DATE(WK-FECHA-SYS)
+                                - FUNCTION INTEGER-OF-DATE(WK-FECHA-ING)
+      *
+      * CLASIFICAR LOS PACIENTES POR TIPO DE SEGURO
+           IF IND-SEG-MED = CA-S
+              EVALUATE COMPANIA
+                      WHEN CA-MAPFRE
+                          PERFORM 2200-ESCRIBIR-MAPFRE
+                             THRU 2200-ESCRIBIR-MAPFRE-EXIT
+                      WHEN CA-ASISA
+                          PERFORM 2300-ESCRIBIR-ASISA
+                             THRU 2300-ESCRIBIR-ASISA-EXIT
+                      WHEN CA-SANITAS
+                          PERFORM 2400-ESCRIBIR-SANITAS
+                             THRU 2400-ESCRIBIR-SANITAS-EXIT
+              END-EVALUATE
+           ELSE
+               PERFORM 2500-ESCRIBIR-NOSEG
+                  THRU 2500-ESCRIBIR-NOSEG-EXIT
+           END-IF
+      *
+           .
+      *
+       2100-INFORMAR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2200-ESCRIBIR-MAPFRE
+      ******************************************************************
+      *
+       2200-ESCRIBIR-MAPFRE.
+      *
+           WRITE REG-FMAPFRE FROM DATOS-PACIENTE-S
+      *
+           IF FS-FMAPFRE NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE MAPFRE'
+              DISPLAY 'FS-FMAPFRE: ' FS-FMAPFRE
+              DISPLAY '2200-ESCRIBIR-MAPFRE'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE DATOS-PACIENTE-S
+              ADD 1 TO CN-REG-ESCRITOS-FMAPFRE
+           END-IF
+      *
+           .
+      *
+       2200-ESCRIBIR-MAPFRE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2300-ESCRIBIR-ASISA
+      ******************************************************************
+      *
+       2300-ESCRIBIR-ASISA.
+      *
+           WRITE REG-FASISA FROM DATOS-PACIENTE-S
+      *
+           IF FS-FASISA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE ASISA'
+              DISPLAY 'FS-FASISA: ' FS-FASISA
+              DISPLAY '2300-ESCRIBIR-ASISA'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE DATOS-PACIENTE-S
+              ADD 1 TO CN-REG-ESCRITOS-FASISA
+           END-IF
+      *
+           .
+      *
+       2300-ESCRIBIR-ASISA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2400-ESCRIBIR-SANITAS
+      ******************************************************************
+      *
+       2400-ESCRIBIR-SANITAS.
+      *
+           WRITE REG-FSANITAS FROM DATOS-PACIENTE-S
+      *
+           IF FS-FSANITAS NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE SANITAS'
+              DISPLAY 'FS-FSANITAS: ' FS-FSANITAS
+              DISPLAY '2400-ESCRIBIR-SANITAS'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE DATOS-PACIENTE-S
+              ADD 1 TO CN-REG-ESCRITOS-FSANITAS
+           END-IF
+      *
+           .
+      *
+       2400-ESCRIBIR-SANITAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2500-ESCRIBIR-NOSEG
+      ******************************************************************
+      *
+       2500-ESCRIBIR-NOSEG.
+      *
+           WRITE REG-FNOSEG FROM DATOS-PACIENTE-S
+      *
+           IF FS-FNOSEG NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE NOSEG'
+              DISPLAY 'FS-FNOSEG: ' FS-FNOSEG
+              DISPLAY '2500-ESCRIBIR-NOSEG'
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           ELSE
+              INITIALIZE DATOS-PACIENTE-S
+              ADD 1 TO CN-REG-ESCRITOS-FNOSEG
+           END-IF
+      *
+           .
+      *
+       2500-ESCRIBIR-NOSEG-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3000-FIN
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-ESTADISTICAS
+              THRU 3200-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FMEDICO
+                 FPACIEN
+                 FMAPFRE
+                 FASISA
+                 FSANITAS
+                 FNOSEG
+      *
+           IF FS-FMEDICO NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE ENTRADA DE MEDICOS'
+              DISPLAY 'FS-FMEDICO: ' FS-FMEDICO
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FPACIEN NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE ENTRADA DE PACIENTES'
+              DISPLAY 'FS-FPACIEN: ' FS-FPACIEN
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FMAPFRE NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA DE MAPFRE'
+              DISPLAY 'FS-FMAPFRE: ' FS-FMAPFRE
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FASISA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA DE ASISA'
+              DISPLAY 'FS-FASISA: ' FS-FASISA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FSANITAS NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA DE SANITAS'
+              DISPLAY 'FS-FSANITAS: ' FS-FSANITAS
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FNOSEG NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA DE NOSEG'
+              DISPLAY 'FS-FNOSEG: ' FS-FNOSEG
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-ESTADISTICAS
+      ******************************************************************
+      *
+       3200-ESTADISTICAS.
+      *
+           DISPLAY '************************************************'
+           DISPLAY '****    ESTADISTICAS DEL PGM PGMHOSPI   ********'
+           DISPLAY '************************************************'
+           DISPLAY '*REG. LEIDOS MEDICO: 'CN-REG-LEIDOS-FMEDICO
+           DISPLAY '*REG. LEIDOS PACIENTES: 'CN-REG-LEIDOS-FPACIEN
+           DISPLAY '*REG. ESCRITOS EN MAPFRE: 'CN-REG-ESCRITOS-FMAPFRE
+           DISPLAY '*REG. ESCRITOS EN ASISA: 'CN-REG-ESCRITOS-FASISA
+           DISPLAY '*REG. ESCRITOS EN SANITAS: 'CN-REG-ESCRITOS-FSANITAS
+           DISPLAY '*REG. ESCRITOS EN NOSEG: 'CN-REG-ESCRITOS-FNOSEG
+      *
+           .
+      *
+       3200-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9000-LEER-FMEDICO
+      ******************************************************************
+      *
+       9000-LEER-FMEDICO.
+      *
+           READ FMEDICO INTO DATOS-MEDICO
+      *
+           EVALUATE FS-FMEDICO
+               WHEN CA-00
+                    ADD 1 TO CN-REG-LEIDOS-FMEDICO
+                    MOVE COD-COLEGIADO TO WK-CLAVE-MEDICO
+               WHEN CA-10
+                    SET SW-SI-FIN-FMEDICO TO TRUE
+                    MOVE HIGH-VALUES     TO WK-CLAVE-MEDICO
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO DE MEDICO'
+                    DISPLAY 'FS-FMEDICO: ' FS-FMEDICO
+                    DISPLAY '9000-LEER-FMEDICO'
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FMEDICO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9100-LEER-FPACIEN
+      ******************************************************************
+      *
+       9100-LEER-FPACIEN.
+      *
+           READ FPACIEN INTO DATOS-PACIENTE
+      *
+           EVALUATE FS-FPACIEN
+               WHEN CA-00
+                    ADD 1 TO CN-REG-LEIDOS-FPACIEN
+                    MOVE COD-MEDICO TO WK-CLAVE-PACIEN
+               WHEN CA-10
+                    SET SW-SI-FIN-FPACIEN TO TRUE
+                    MOVE HIGH-VALUES     TO WK-CLAVE-PACIEN
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO DE PACIENTES'
+                    DISPLAY 'FS-FPACIEN: ' FS-FPACIEN
+                    DISPLAY '9100-LEER-FPACIEN'
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       9100-LEER-FPACIEN-EXIT.
+           EXIT.
+      *

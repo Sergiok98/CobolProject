@@ -1,0 +1,1122 @@
+      ******************************************************************
+      *     I D E N T I F I C A T I O N        D I V I S I O N
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      * DESCRIPCION DEL PGM: PGM QUE A PARTIR DEL FICHERO DE ENTRADA
+      * DE SOCIOS, GENERA DOS FICHEROS DE SALIDA, CON LA INFORMACION
+      * DE LOS SOCIOS VIP (FICHERO 1) Y LA INFORMACION DE LOS SOCIOS
+      * NO VIP (FICHERO 2).
+      ******************************************************************
+      *
+       PROGRAM-ID. RUTPAG.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 23/09/2024.
+      *
+      ******************************************************************
+      *
+      *   E N V I R O N M E N T              D I V I S I O N
+      *   ---------------------              ---------------
+      *
+      * DEFINIR LOS FICHEROS DE ENTRADA Y SALIDA QUE VAN A SER USADOS
+      * DENTRO DEL PGM COBOL. RELACIONAR LOS NOMBRES LOGICOS DE LOS
+      * FICHEROS EN EL PGRAMA CON NOMBRES DE LOS FICHEROS DE LOS JCLS.
+      * DOS SECCIONES:
+      *     - CONFIGURATION SECTION
+      *       DEFINIR EL NOMBRE DE LOS PROCESADORES DONDE SE COMPILA Y
+      *       EJECUTA EL PGM (NO ES OBLIGATORIO).
+      *     - INPUT-OUTPUT SECTION
+      *       DEFINIR LOS DISPOSITIVOS PERIFERICOS (IMPRESORAS, ETC)
+      *       SE DEFINEN TAMBIEN LOS FICHEROS DE E/S QUE SE USARAN EN EL
+      *       PRGRAMA.
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      *
+      ******************************************************************
+      *   D A T A                D I V I S I O N
+      *   --------------------------------------
+      *
+      * IDENTIFICA LOS NOMBRES DE DATOS UTILIZADOS EN EL PGM.
+      * CONTIENE 3 SECCIONES:
+      *      - FILE SECTION.
+      *        DESCRIBIR LOS FICHEROS DE ENTRADA Y SALIDA QUE SE USAN
+      *        EN EL PGM COBOL.
+      *      - WORKING STORAGE SECTION.
+      *        DEFINIR LOS CAMPOS DE TRABAJO NECESARIOS PARA EL PGM.
+      *        (VARIABLES, CONSTANTES, ACUMULADORES, CONTADORES,
+      *         SWITHCHES, COPYS, DCLGENS, TABLAS INTERNAS, CURSORES...
+      *      - LINKAGE SECTION.
+      *        SE USARA CUANDO EL PGM SEA DE TIPO RUTINA, YA QUE ES LA
+      *        ZONA QUE SIRVE COMO COMUNICACION CON EL PGM QUE LO INVOCA
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *   F I L E       S E C T I O N
+      ******************************************************************
+      *
+      *
+      ******************************************************************
+      *   W O R K I N G       S T O R A G E      S E C T I O N
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES.
+          05 CA-L                              PIC X(01) VALUE 'L'.
+          05 CA-R                              PIC X(01) VALUE 'R'.
+          05 CA-S                              PIC X(01) VALUE 'S'.
+          05 CA-N                              PIC X(01) VALUE 'N'.
+          05 CA-00                             PIC X(02) VALUE '00'.
+      *
+       01 CN-CONSTANTES.
+          05 CN-0                              PIC 9(01) VALUE 0.
+          05 CN-3                              PIC 9(01) VALUE 3.
+          05 CN-100                            PIC 9(03) VALUE 100.
+      *
+       01 CN-CONTADORES.
+          05 CONT-LEIDOS                       PIC 9(03).
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-CURSOR                     PIC X(01).
+             88 SI-FIN-CURSOR                  VALUE 'S'.
+             88 NO-FIN-CURSOR                  VALUE 'N'.
+      *
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+      * DCLGEN DE LA TABLA DIRECCIONES
+           EXEC SQL
+               INCLUDE TBDIREC
+           END-EXEC.
+      ******************************************************************
+      *------------------------CURSOR DE LISTA--------------------------
+           EXEC SQL
+              DECLARE CURSOR-LIST-DIREC CURSOR FOR
+                SELECT POBLACION
+                      ,TIPO
+                      ,DIRECCION
+                      ,PLANTA
+                      ,PUERTA
+                  FROM DIRECCIONES
+                ORDER BY POBLACION
+                        ,TIPO
+                        ,DIRECCION
+                        ,PLANTA
+                        ,PUERTA
+           END-EXEC.
+      *----CURSOR DE REPAGINACION 1-------------------------------------
+      *
+           EXEC SQL
+              DECLARE CURSOR-REPAG1-DIREC CURSOR FOR
+                SELECT POBLACION
+                      ,TIPO
+                      ,DIRECCION
+                      ,PLANTA
+                      ,PUERTA
+                  FROM DIRECCIONES
+                 WHERE POBLACION = :TB-POBLACION
+                   AND TIPO      = :TB-TIPO
+                   AND DIRECCION = :TB-DIRECCION
+                   AND PLANTA    = :TB-PLANTA
+                   AND PUERTA    > :TB-PUERTA
+                ORDER BY POBLACION
+                        ,TIPO
+                        ,DIRECCION
+                        ,PLANTA
+                        ,PUERTA
+           END-EXEC.
+      *
+      *----CURSOR DE REPAGINACION 2-------------------------------------
+      *
+           EXEC SQL
+              DECLARE CURSOR-REPAG2-DIREC CURSOR FOR
+                SELECT POBLACION
+                      ,TIPO
+                      ,DIRECCION
+                      ,PLANTA
+                      ,PUERTA
+                  FROM DIRECCIONES
+                 WHERE POBLACION = :TB-POBLACION
+                   AND TIPO      = :TB-TIPO
+                   AND DIRECCION = :TB-DIRECCION
+                   AND PLANTA    > :TB-PLANTA
+                 ORDER BY POBLACION
+                         ,TIPO
+                         ,DIRECCION
+                         ,PLANTA
+                         ,PUERTA
+           END-EXEC.
+      *
+      *----CURSOR DE REPAGINACION 3-------------------------------------
+      *
+           EXEC SQL
+              DECLARE CURSOR-REPAG3-DIREC CURSOR FOR
+                SELECT POBLACION
+                      ,TIPO
+                      ,DIRECCION
+                      ,PLANTA
+                      ,PUERTA
+                  FROM DIRECCIONES
+                 WHERE POBLACION = :TB-POBLACION
+                   AND TIPO      = :TB-TIPO
+                   AND DIRECCION > :TB-DIRECCION
+                 ORDER BY POBLACION
+                         ,TIPO
+                         ,DIRECCION
+                         ,PLANTA
+                         ,PUERTA
+           END-EXEC.
+      *
+      *----CURSOR DE REPAGINACION 4-------------------------------------
+      *
+           EXEC SQL
+              DECLARE CURSOR-REPAG4-DIREC CURSOR FOR
+                SELECT POBLACION
+                      ,TIPO
+                      ,DIRECCION
+                      ,PLANTA
+                      ,PUERTA
+                  FROM DIRECCIONES
+                 WHERE POBLACION = :TB-POBLACION
+                   AND TIPO      > :TB-TIPO
+                 ORDER BY POBLACION
+                         ,TIPO
+                         ,DIRECCION
+                         ,PLANTA
+                         ,PUERTA
+           END-EXEC.
+      *
+      *----CURSOR DE REPAGINACION 5-------------------------------------
+      *
+           EXEC SQL
+              DECLARE CURSOR-REPAG5-DIREC CURSOR FOR
+                SELECT POBLACION
+                      ,TIPO
+                      ,DIRECCION
+                      ,PLANTA
+                      ,PUERTA
+                  FROM DIRECCIONES
+                 WHERE POBLACION > :TB-POBLACION
+                 ORDER BY POBLACION
+                         ,TIPO
+                         ,DIRECCION
+                         ,PLANTA
+                         ,PUERTA
+           END-EXEC.
+      *
+       LINKAGE SECTION.
+       COPY CPYRPAG.
+      *
+      *
+      ******************************************************************
+      *   P R O C E D U R E             D I V I S I O N
+      ******************************************************************
+      *
+       PROCEDURE DIVISION USING CPYRPAG.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE CN-CONTADORES
+                      DCLDIRECCIONES
+                      SALIDA
+                      ERRORES
+                      SALIDA-CONTROL
+      *
+           MOVE CA-00 TO COD-RETORNO
+           MOVE CA-00 TO COD-SUBRETORNO
+           MOVE CA-S  TO MAS-DATOS
+           MOVE 1     TO CONT-LEIDOS
+      *
+           PERFORM 1100-VALIDAR-CAMPOS-ENT
+              THRU 1100-VALIDAR-CAMPOS-ENT-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-VALIDAR-CAMPOS-ENT
+      ******************************************************************
+      *
+       1100-VALIDAR-CAMPOS-ENT.
+      *
+           IF OPCION = SPACES OR LOW-VALUES
+              MOVE '88'         TO COD-RETORNO
+              MOVE '01'         TO COD-SUBRETORNO
+              MOVE '1100-VALIDAR-CAMPOS-ENT' TO PARRAFO
+              MOVE 'CAMPO OPCION SIN INFORMAR' TO DESCRIPCION
+              MOVE 'OPCION'     TO TABLA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF NUM-OCCURS-E = CN-0 OR NUM-OCCURS-E > 5
+              MOVE '88'         TO COD-RETORNO
+              MOVE '02'         TO COD-SUBRETORNO
+              MOVE '1100-VALIDAR-CAMPOS-ENT' TO PARRAFO
+              MOVE 'CAMPO NUM-OCCURS-E CON VALOR INVALIDO'
+                                 TO DESCRIPCION
+              MOVE 'NUM-OCCURS-E' TO TABLA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-VALIDAR-CAMPOS-ENT-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           EVALUATE OPCION
+               WHEN CA-L
+                    PERFORM 2100-ABRIR-CURSOR-LISTA
+                       THRU 2100-ABRIR-CURSOR-LISTA-EXIT
+      *
+                    PERFORM 2200-LEER-CURSOR-LISTA
+                       THRU 2200-LEER-CURSOR-LISTA-EXIT
+                      UNTIL CONT-LEIDOS > NUM-OCCURS-E
+                         OR SI-FIN-CURSOR
+      *
+                    PERFORM 2300-CERRAR-CURSOR-LISTA
+                       THRU 2300-CERRAR-CURSOR-LISTA-EXIT
+      *
+               WHEN CA-R
+                    MOVE POBLACION-REP        TO TB-POBLACION
+                    MOVE TIPO-REP             TO TB-TIPO
+                    MOVE DIRECCION-REP        TO TB-DIRECCION
+                    MOVE PLANTA-REP           TO TB-PLANTA
+                    MOVE PUERTA-REP           TO TB-PUERTA
+      *
+                    PERFORM 2400-ABRIR-CURSOR-REPAG1
+                       THRU 2400-ABRIR-CURSOR-REPAG1-EXIT
+      *
+                    PERFORM 2500-LEER-CURSOR-REPAG1
+                       THRU 2500-LEER-CURSOR-REPAG1-EXIT
+                      UNTIL CONT-LEIDOS > NUM-OCCURS-E
+                         OR SI-FIN-CURSOR
+      *
+                    PERFORM 2600-CERRAR-CURSOR-REPAG1
+                       THRU 2600-CERRAR-CURSOR-REPAG1-EXIT
+      *
+                    IF SI-FIN-CURSOR
+
+                       SET NO-FIN-CURSOR           TO TRUE
+
+                       PERFORM 2700-ABRIR-CURSOR-REPAG2
+                          THRU 2700-ABRIR-CURSOR-REPAG2-EXIT
+
+                       PERFORM 2800-LEER-CURSOR-REPAG2
+                          THRU 2800-LEER-CURSOR-REPAG2-EXIT
+                         UNTIL CONT-LEIDOS > NUM-OCCURS-E
+                            OR SI-FIN-CURSOR
+
+                       PERFORM 2900-CERRAR-CURSOR-REPAG2
+                          THRU 2900-CERRAR-CURSOR-REPAG2-EXIT
+      *
+                       IF SI-FIN-CURSOR
+
+                          SET NO-FIN-CURSOR           TO TRUE
+
+                          PERFORM 2A00-ABRIR-CURSOR-REPAG3
+                             THRU 2A00-ABRIR-CURSOR-REPAG3-EXIT
+
+                          PERFORM 2B00-LEER-CURSOR-REPAG3
+                             THRU 2B00-LEER-CURSOR-REPAG3-EXIT
+                            UNTIL CONT-LEIDOS > NUM-OCCURS-E
+                               OR SI-FIN-CURSOR
+
+                          PERFORM 2C00-CERRAR-CURSOR-REPAG3
+                             THRU 2C00-CERRAR-CURSOR-REPAG3-EXIT
+      *
+                          IF SI-FIN-CURSOR
+
+                             SET NO-FIN-CURSOR           TO TRUE
+
+                             PERFORM 2D00-ABRIR-REPAG4
+                                THRU 2D00-ABRIR-REPAG4-EXIT
+
+                             PERFORM 2E00-LEER-REPAG4
+                                THRU 2E00-LEER-REPAG4-EXIT
+                               UNTIL CONT-LEIDOS > NUM-OCCURS-E
+                                  OR SI-FIN-CURSOR
+
+                             PERFORM 2F00-CERRAR-REPAG4
+                                THRU 2F00-CERRAR-REPAG4-EXIT
+      *
+                             IF SI-FIN-CURSOR
+
+                                SET NO-FIN-CURSOR           TO TRUE
+
+                                PERFORM 2G00-ABRIR-REPAG5
+                                   THRU 2G00-ABRIR-REPAG5-EXIT
+
+                                PERFORM 2H00-LEER-REPAG5
+                                   THRU 2H00-LEER-REPAG5-EXIT
+                                  UNTIL CONT-LEIDOS > NUM-OCCURS-E
+                                     OR SI-FIN-CURSOR
+
+                                PERFORM 2I00-CERRAR-REPAG5
+                                   THRU 2I00-CERRAR-REPAG5-EXIT
+
+                             END-IF
+                          END-IF
+                       END-IF
+                    END-IF
+      *
+             WHEN OTHER
+                  MOVE '88'            TO COD-RETORNO
+                  MOVE '03'            TO COD-SUBRETORNO
+                  MOVE '2000-PROCESO' TO PARRAFO
+                  MOVE 'CAMPO OPCION NO INVALIDO' TO DESCRIPCION
+                  MOVE 'OPCION' TO TABLA
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-ABRIR-CURSOR-LISTA
+      ******************************************************************
+      *
+       2100-ABRIR-CURSOR-LISTA.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           EXEC SQL
+              OPEN CURSOR-LIST-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2100-ABRIR-CURSOR-LISTA'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL ABRIR CURSOR LISTA'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2100-ABRIR-CURSOR-LISTA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2200-LEER-CURSOR-LISTA
+      ******************************************************************
+      *
+       2200-LEER-CURSOR-LISTA.
+      *
+           EXEC SQL
+              FETCH CURSOR-LIST-DIREC
+                INTO :TB-POBLACION
+                    ,:TB-TIPO
+                    ,:TB-DIRECCION
+                    ,:TB-PLANTA
+                    ,:TB-PUERTA
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    IF CONT-LEIDOS <= NUM-OCCURS-E
+                       PERFORM 9000-INFORMAR-SALIDA
+                          THRU 9000-INFORMAR-SALIDA-EXIT
+                    END-IF
+
+               WHEN CN-100
+                    SET SI-FIN-CURSOR       TO TRUE
+                    MOVE CA-N               TO MAS-DATOS
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2200-LEER-CURSOR-LISTA'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL LEER CURSOR LISTA'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2200-LEER-CURSOR-LISTA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2300-CERRAR-CURSOR-LISTA
+      ******************************************************************
+      *
+       2300-CERRAR-CURSOR-LISTA.
+      *
+           EXEC SQL
+              CLOSE CURSOR-LIST-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2300-CERRAR-CURSOR-LISTA'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL CERRAR CURSOR LISTA'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2300-CERRAR-CURSOR-LISTA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2400-ABRIR-CURSOR-REPAG1
+      ******************************************************************
+      *
+       2400-ABRIR-CURSOR-REPAG1.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           EXEC SQL
+              OPEN CURSOR-REPAG1-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2400-ABRIR-CURSOR-REPAG'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL ABRIR CURSOR REPAG'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2400-ABRIR-CURSOR-REPAG1-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2500-LEER-CURSOR-REPAG1
+      ******************************************************************
+      *
+       2500-LEER-CURSOR-REPAG1.
+      *
+           EXEC SQL
+              FETCH CURSOR-REPAG1-DIREC
+                INTO :TB-POBLACION
+                    ,:TB-TIPO
+                    ,:TB-DIRECCION
+                    ,:TB-PLANTA
+                    ,:TB-PUERTA
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    IF CONT-LEIDOS <= NUM-OCCURS-E
+                       PERFORM 9000-INFORMAR-SALIDA
+                          THRU 9000-INFORMAR-SALIDA-EXIT
+                    END-IF
+
+               WHEN CN-100
+                    SET SI-FIN-CURSOR       TO TRUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2500-LEER-CURSOR-REPAG1'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL LEER CURSOR REPAG1'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2500-LEER-CURSOR-REPAG1-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2600-CERRAR-CURSOR-REPAG1
+      ******************************************************************
+      *
+       2600-CERRAR-CURSOR-REPAG1.
+      *
+           EXEC SQL
+              CLOSE CURSOR-REPAG1-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2600-CERRAR-CURSOR-REPAG'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL CERRAR CURSOR REPAG1'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2600-CERRAR-CURSOR-REPAG1-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2700-ABRIR-CURSOR-REPAG2
+      ******************************************************************
+      *
+       2700-ABRIR-CURSOR-REPAG2.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           EXEC SQL
+              OPEN CURSOR-REPAG2-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2700-ABRIR-CURSOR-REPAG2'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL ABRIR CURSOR REPAG2'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2700-ABRIR-CURSOR-REPAG2-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2800-LEER-CURSOR-REPAG2
+      ******************************************************************
+      *
+       2800-LEER-CURSOR-REPAG2.
+      *
+           EXEC SQL
+              FETCH CURSOR-REPAG2-DIREC
+                INTO :TB-POBLACION
+                    ,:TB-TIPO
+                    ,:TB-DIRECCION
+                    ,:TB-PLANTA
+                    ,:TB-PUERTA
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    IF CONT-LEIDOS <= NUM-OCCURS-E
+                       PERFORM 9000-INFORMAR-SALIDA
+                          THRU 9000-INFORMAR-SALIDA-EXIT
+                    END-IF
+
+               WHEN CN-100
+                    SET SI-FIN-CURSOR       TO TRUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2800-LEER-CURSOR-REPAG2'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL LEER CURSOR REPAG2'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2800-LEER-CURSOR-REPAG2-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2900-CERRAR-CURSOR-REPAG2
+      ******************************************************************
+      *
+       2900-CERRAR-CURSOR-REPAG2.
+      *
+           EXEC SQL
+              CLOSE CURSOR-REPAG2-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2900-CERRAR-CURSOR-REPAG2'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL CERRAR CURSOR REPAG2'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2900-CERRAR-CURSOR-REPAG2-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2A00-ABRIR-CURSOR-REPAG3
+      ******************************************************************
+      *
+       2A00-ABRIR-CURSOR-REPAG3.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           EXEC SQL
+              OPEN CURSOR-REPAG3-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2A00-ABRIR-CURSOR-REPAG3'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL ABRIR CURSOR REPAG3'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2A00-ABRIR-CURSOR-REPAG3-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2B00-LEER-CURSOR-REPAG3
+      ******************************************************************
+      *
+       2B00-LEER-CURSOR-REPAG3.
+      *
+           EXEC SQL
+              FETCH CURSOR-REPAG3-DIREC
+                INTO :TB-POBLACION
+                    ,:TB-TIPO
+                    ,:TB-DIRECCION
+                    ,:TB-PLANTA
+                    ,:TB-PUERTA
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    IF CONT-LEIDOS <= NUM-OCCURS-E
+                       PERFORM 9000-INFORMAR-SALIDA
+                          THRU 9000-INFORMAR-SALIDA-EXIT
+                    END-IF
+
+               WHEN CN-100
+                    SET SI-FIN-CURSOR       TO TRUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2B00-LEER-CURSOR-REPAG3'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL LEER CURSOR REPAG3'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2B00-LEER-CURSOR-REPAG3-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2C00-CERRAR-CURSOR-REPAG3
+      ******************************************************************
+      *
+       2C00-CERRAR-CURSOR-REPAG3.
+      *
+           EXEC SQL
+              CLOSE CURSOR-REPAG3-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2C00-CERRAR-CURSOR-REPAG3'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL CERRAR CURSOR REPAG3'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2C00-CERRAR-CURSOR-REPAG3-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2D00-ABRIR-REPAG4
+      ******************************************************************
+      *
+       2D00-ABRIR-REPAG4.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           EXEC SQL
+              OPEN CURSOR-REPAG4-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2D00-ABRIR-REPAG4'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL ABRIR CURSOR REPAG4'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2D00-ABRIR-REPAG4-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2E00-LEER-REPAG4
+      ******************************************************************
+      *
+       2E00-LEER-REPAG4.
+      *
+           EXEC SQL
+              FETCH CURSOR-REPAG4-DIREC
+                INTO :TB-POBLACION
+                    ,:TB-TIPO
+                    ,:TB-DIRECCION
+                    ,:TB-PLANTA
+                    ,:TB-PUERTA
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    IF CONT-LEIDOS <= NUM-OCCURS-E
+                       PERFORM 9000-INFORMAR-SALIDA
+                          THRU 9000-INFORMAR-SALIDA-EXIT
+                    END-IF
+
+               WHEN CN-100
+                    SET SI-FIN-CURSOR       TO TRUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2E00-LEER-REPAG4'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL LEER CURSOR REPAG4'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2E00-LEER-REPAG4-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2F00-CERRAR-REPAG4
+      ******************************************************************
+      *
+       2F00-CERRAR-REPAG4.
+      *
+           EXEC SQL
+              CLOSE CURSOR-REPAG4-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2F00-CERRAR-REPAG4'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL CERRAR CURSOR REPAG4'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2F00-CERRAR-REPAG4-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2G00-ABRIR-REPAG5
+      ******************************************************************
+      *
+       2G00-ABRIR-REPAG5.
+      *
+           SET NO-FIN-CURSOR TO TRUE
+      *
+           EXEC SQL
+              OPEN CURSOR-REPAG5-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2G00-ABRIR-REPAG5'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL ABRIR CURSOR REPAG5'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2G00-ABRIR-REPAG5-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2H00-LEER-REPAG5
+      ******************************************************************
+      *
+       2H00-LEER-REPAG5.
+      *
+           EXEC SQL
+              FETCH CURSOR-REPAG5-DIREC
+                INTO :TB-POBLACION
+                    ,:TB-TIPO
+                    ,:TB-DIRECCION
+                    ,:TB-PLANTA
+                    ,:TB-PUERTA
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    IF CONT-LEIDOS <= NUM-OCCURS-E
+                       PERFORM 9000-INFORMAR-SALIDA
+                          THRU 9000-INFORMAR-SALIDA-EXIT
+                    END-IF
+
+               WHEN CN-100
+                    SET SI-FIN-CURSOR       TO TRUE
+                    MOVE CA-N               TO MAS-DATOS
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2H00-LEER-REPAG5'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL LEER CURSOR REPAG5'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2H00-LEER-REPAG5-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2I00-CERRAR-REPAG5
+      ******************************************************************
+      *
+       2I00-CERRAR-REPAG5.
+      *
+           EXEC SQL
+              CLOSE CURSOR-REPAG5-DIREC
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    CONTINUE
+               WHEN OTHER
+                    MOVE '99'               TO COD-RETORNO
+                    MOVE '99'               TO COD-SUBRETORNO
+                    MOVE '2I00-CERRAR-REPAG5'
+                                            TO PARRAFO
+                    MOVE 'ERROR AL CERRAR CURSOR REPAG5'
+                                            TO DESCRIPCION
+                    MOVE 'DIRECCIONES'      TO TABLA
+                    MOVE SQLCODE            TO SQLCODE-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2I00-CERRAR-REPAG5-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 9000-INFORMAR-SALIDA
+      *****************************************************************
+      *
+       9000-INFORMAR-SALIDA.
+      *
+           MOVE TB-POBLACION           TO POBLACION-RUT(CONT-LEIDOS)
+                                          POBLACION-REP
+           MOVE TB-TIPO                TO TIPO-RUT(CONT-LEIDOS)
+                                          TIPO-REP
+           MOVE TB-DIRECCION           TO DIRECCION-RUT(CONT-LEIDOS)
+                                          DIRECCION-REP
+           MOVE TB-PLANTA              TO PLANTA-RUT(CONT-LEIDOS)
+                                          PLANTA-REP
+           MOVE TB-PUERTA              TO PUERTA-RUT(CONT-LEIDOS)
+                                          PUERTA-REP
+      *
+           ADD 1                       TO CONT-LEIDOS
+           ADD 1                       TO NUM-OCCURS-S
+      *
+           .
+      *
+       9000-INFORMAR-SALIDA-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 3000-FIN
+      *****************************************************************
+      *
+       3000-FIN.
+      *
+           GOBACK
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *

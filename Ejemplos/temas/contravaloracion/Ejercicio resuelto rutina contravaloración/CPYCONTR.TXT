@@ -1,0 +1,19 @@
+      ******************************************************************
+      *                 COPY DEL FICHERO DE ENTRADA Y SALIDA
+      *                         DE CONTRAVALORACIONES
+      *
+      *  TITULAR - TITULAR DE LA CUENTA - ALFANUM 40
+      *  CUENTA-ORIGEN - CUENTA ORIGEN - ALFANUM 25
+      *  CUENTA-DESTIN - CUENTA DESTINO - ALFANUM 25
+      *  IMPORTE - IMPORTE DE LA TRANSFERENCIA - NUM 5 ENTEROS + 3 DEC
+      *  DIVISA - DIVISA ORIGEN - ALFANUM 03
+      *
+      *  LONGITUD: 101
+      ******************************************************************
+      *
+       01  COPY-CPYCONTR.
+           05 TITULAR             PIC X(40).
+           05 CUENTA-ORIGEN       PIC X(25).
+           05 CUENTA-DESTINO      PIC X(25).
+           05 IMPORTE             PIC 9(05)V9(03).
+           05 DIVISA              PIC X(03).

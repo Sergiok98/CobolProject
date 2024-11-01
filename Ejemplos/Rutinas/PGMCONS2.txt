@@ -1,0 +1,438 @@
+      ******************************************************************
+      ** P G M C O N S 2 -APARTIR DE UN FICHERO DE ENTRADA Y MEDIANTE **
+      **                  UNA RUTINA CALCULAREMOS EL IMPORTE BRUTO    **
+      **                  EL DESCUENTO SI LO TIENE Y EL IMPORTE TOTAL **
+      **                  Y ESCRIBIREMOS EN UN FICHERO DE SALIDA LOS  **
+      **                  DATOS DE ENTRADA ADEMAS DEL DATO CALCULADO  **
+      ******************************************************************
+      *
+      ******************************************************************
+      ** IDENTIFICATION DIVISION                                      **
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. PGMCONS2.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 04/09/2024.
+      *
+      ******************************************************************
+      ** ENVIRONMENT DIVISION                                         **
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT FENTRADA ASSIGN TO FENTRADA
+           FILE STATUS FS-FENTRADA.
+      *
+           SELECT FSALIDA ASSIGN TO FSALIDA
+           FILE STATUS FS-FSALIDA.
+      *
+           SELECT FERROR  ASSIGN TO FERROR
+           FILE STATUS FS-FERROR.
+      *
+      ******************************************************************
+      ** DATA DIVISION                                                **
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       FD FENTRADA
+           RECORDING MODE IS F.
+       01  REG-FENTRADA               PIC X(29).
+      *
+       FD FSALIDA
+           RECORDING MODE IS F.
+       01  REG-FSALIDA                PIC X(58).
+      *
+       FD FERROR
+           RECORDING MODE IS F.
+       01  REG-FERROR                 PIC X(135).
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01  FS-FILE-STATUS.
+           05  FS-FENTRADA            PIC X(02).
+           05  FS-FSALIDA             PIC X(02).
+           05  FS-FERROR              PIC X(02).
+      *
+       01  CA-CONSTANTES.
+           05  CA-RUTINA              PIC X(08) VALUE 'RUTCONS2'.
+           05  CA-00                  PIC X(02) VALUE '00'.
+           05  CA-10                  PIC X(02) VALUE '10'.
+           05  CA-99                  PIC X(02) VALUE '99'.
+      *
+       01  CN-CONTADORES.
+           05  CN-REG-LEIDOS-FENTRADA PIC 9(03).
+           05  CN-REG-ESCRIT-FSALIDA  PIC 9(03).
+           05  CN-REG-ESCRIT-FERROR   PIC 9(03).
+      *
+       01  SW-SWITCHES.
+           05  SW-FIN-FENTRADA        PIC X(01).
+               88  SW-SI-FIN-FENTRADA VALUE 'S'.
+               88  SW-NO-FIN-FENTRADA VALUE 'N'.
+      *
+      *COPY DEL FICHERO DE ENTRADA
+      *
+       COPY CPYCONSE.
+      *
+      *COPY DEL FICHERO DE SALIDA
+      *
+       COPY CPYCONSS.
+      *
+      *COPY DEL FICHERO DE ERRORES
+      *
+       COPY CPYERCON.
+      *
+      *COPY DE LA RUTINA RUTCONS2
+      *
+       COPY CPYRCONS.
+      *
+      ******************************************************************
+      ** PROCEDURE DIVISION                                           **
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FENTRADA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      ** 1000-INICIO                                                  **
+      ** INICIALIZAR VARIABLES                                        **
+      ** APERTURA DE FICHEROS                                         **
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES
+                      ENTRADA-REC
+                      SALIDA-REC
+                      ERRORES-RUTINA
+                      SALIDA-RUTINA
+                      CPY-ERROR-INC
+      *
+           SET SW-NO-FIN-FENTRADA        TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1100-ABRIR-FICHEROS                                          **
+      ** ABRIMOS LOS FICHEROS DE ENTRADA Y SALIDA COMPROBANDO SU      **
+      ** FILE STATUS.                                                 **
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT  FENTRADA
+                OUTPUT FSALIDA
+                       FERROR
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO FENTRADA'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FSALIDA NOT = CA-00
+      *
+              DISPLAY 'ERROR AL ABRIR EL FICHERO FSALIDA'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FSALIDA'
+              DISPLAY 'FILE STATUS: ' FS-FSALIDA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FERROR NOT = CA-00
+      *
+              DISPLAY 'ERROR AL ABRIR EL FICHERO ERRORES'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FERROR'
+              DISPLAY 'FILE STATUS: ' FS-FERROR
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2000-PROCESO                                                 **
+      ** VALIDAR EL VALOR DEL INDICADOR DE PENALIZACION PARA SABER    **
+      ** SI TENGO QUE CALCULAR LA COMISION Y CALCULAR EL IMPORTE TOTAL**
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-LLAMAR-RUTINA
+              THRU 2100-LLAMAR-RUTINA-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2100-LLAMAR-RUTINA                                           **
+      ** LLAMAMOS A LA RUTINA POR CAD REGISTRO DEL FICHERO DE ENTRADA **
+      ** PARA OBTENER LA INFORMACION CORRESPONDIENTE.                 **
+      ******************************************************************
+      *
+       2100-LLAMAR-RUTINA.
+      *
+           MOVE ENTRADA-TIPO-CLIENTE    TO RUTINA-TIPO-CLIENTE
+           MOVE ENTRADA-CONSUMO-KWH     TO RUTINA-CONSUMO-KWH
+      *
+           CALL CA-RUTINA USING RUTINA-PARAM-AREA
+      *
+           EVALUATE COD-RETORNO
+               WHEN CA-00
+                    PERFORM 2200-ESCRIBIR-FSALIDA
+                       THRU 2200-ESCRIBIR-FSALIDA-EXIT
+               WHEN CA-99
+                    PERFORM 2300-ESCRIBIR-FERROR
+                       THRU 2300-ESCRIBIR-FERROR
+               WHEN OTHER
+                    DISPLAY 'COD-RETORNO    : ' COD-RETORNO
+                    DISPLAY 'COD-SUBRETORNO : ' COD-SUBRETORNO
+                    DISPLAY 'PARRAFO-RUT    : ' PARRAFO-RUT
+                    DISPLAY 'DESCRIPCION-RUT: ' DESCRIPCION-RUT
+                    DISPLAY 'ELEMENTO-RUT   : ' ELEMENTO-RUT
+
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2100-LLAMAR-RUTINA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2200-ESCRIBIR-FSALIDA                                        **
+      ** ESCRIBIREMOS EL REGISTRO DE SALIDA EN EL FICHERO EVALUANDO   **
+      ** POSTERIORMENTE SU FILE STATUS.                               **
+      ******************************************************************
+      *
+       2200-ESCRIBIR-FSALIDA.
+      *
+           MOVE ENTRADA-CLIENTE-ID       TO SALIDA-CLIENTE-ID
+           MOVE ENTRADA-TIPO-CLIENTE     TO SALIDA-TIPO-CLIENTE
+           MOVE ENTRADA-CONSUMO-KWH      TO SALIDA-CONSUMO-KWH
+           MOVE RUTINA-IMPORTE-BRUTO     TO SALIDA-IMPORTE-BRUTO
+           MOVE RUTINA-DESCUENTO         TO SALIDA-DESCUENTO
+      *
+           IF RUTINA-DESCUENTO > 0
+             COMPUTE SALIDA-IMPORTE-TOTAL =
+                     (RUTINA-IMPORTE-BRUTO * RUTINA-DESCUENTO)/100
+           ELSE
+             MOVE RUTINA-IMPORTE-BRUTO   TO SALIDA-IMPORTE-TOTAL
+           END-IF
+      *
+           WRITE REG-FSALIDA FROM SALIDA-REC
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EL FICHERO FSALIDA'
+              DISPLAY 'PARRAFO: 2200-ESCRIBIR-FSALIDA'
+              DISPLAY 'NOMBRE FICHERO: FSALIDA'
+              DISPLAY 'FILE STATUS: ' FS-FSALIDA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           ELSE
+              INITIALIZE SALIDA-REC
+              ADD 1                TO CN-REG-ESCRIT-FSALIDA
+           END-IF
+      *
+           .
+      *
+       2200-ESCRIBIR-FSALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2300-ESCRIBIR-FERROR                                         **
+      ** ESCRIBIREMOS EL REGISTRO DE ERROR  EN EL FICHERO EVALUANDO   **
+      ** POSTERIORMENTE SU FILE STATUS.                               **
+      ******************************************************************
+      *
+       2300-ESCRIBIR-FERROR.
+      *
+           MOVE COD-RETORNO              TO RETORNO-INC
+           MOVE COD-SUBRETORNO           TO SUBRETORNO-INC
+           MOVE NOMBRE-RUT               TO NOMBRE-INC
+           MOVE PARRAFO-RUT              TO PARRAFO-INC
+           MOVE DESCRIPCION-RUT          TO DESCRIPCION-INC
+           MOVE ELEMENTO-RUT             TO ELEMENTO-INC
+           MOVE ENTRADA-CLIENTE-ID       TO CLIENTE-ID-INC
+           MOVE ENTRADA-TIPO-CLIENTE     TO TIPO-CLIENTE-INC
+           MOVE ENTRADA-CONSUMO-KWH      TO CONSUMO-KWH-INC
+      *
+           WRITE REG-FERROR FROM CPY-ERROR-INC
+      *
+           IF FS-FERROR NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EL FICHERO ERROR'
+              DISPLAY 'PARRAFO: 2300-ESCRIBIR-FERROR'
+              DISPLAY 'NOMBRE FICHERO: FERROR'
+              DISPLAY 'FILE STATUS: ' FS-FERROR
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           ELSE
+              INITIALIZE CPY-ERROR-INC
+              ADD 1                TO CN-REG-ESCRIT-FERROR
+           END-IF
+      *
+           .
+      *
+       2300-ESCRIBIR-FERROR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3000-FIN                                                     **
+      ** MOSTRAMOS LOS DATOS DEL PRESTAMO.                            **
+      ** FINALIZAMOS EL PGM.                                          **
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-MOSTRAR-ESTADISTICAS
+              THRU 3200-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3100-CERRAR-FICHEROS                                         **
+      ** CERRAMOS LOS FICHEROS DE ENTRADA Y SALIDA CONTROLANDO SU     **
+      ** FILE STATUS.                                                 **
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+                 FSALIDA
+                 FERROR
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO FENTRADA'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+           END-IF
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO FSALIDA'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FSALIDA'
+              DISPLAY 'FILE STATUS: ' FS-FSALIDA
+           END-IF
+      *
+           IF FS-FERROR NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO ERROR'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FERROR'
+              DISPLAY 'FILE STATUS: ' FS-FERROR
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      *
+      ******************************************************************
+      ** 3200-MOSTRAR-ESTADISTICAS                                    **
+      ** MOSTRAMOS ESTADISTICAS DEL PGM IMPRIMIENTO LOS REG. LEIDOS   **
+      ** DEL FICHERO DE ENTRADA Y LOS REG. ESCRITOS DEL FICH. DE SALIDA*
+      ******************************************************************
+      *
+       3200-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '*******************************'
+           DISPLAY '**D A T O S   P G M C O N S 2**'
+           DISPLAY '*******************************'
+           DISPLAY '*REG.LEIDOS FENTRA' CN-REG-LEIDOS-FENTRADA '   *'
+                   '*'
+           DISPLAY '*REG.ESCRIT FSALID' CN-REG-ESCRIT-FSALIDA '*'
+           DISPLAY '*REG.ESCRIT FERROR' CN-REG-ESCRIT-FERROR  '*'
+           DISPLAY '*******************************'
+      *
+           .
+      *
+       3200-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 9000-LEER-FENTRADA                                           **
+      ** LEEMOS REGISTRO DEL FICHERO FENTRADA CONTROLANDO SU FILE     **
+      ** STATUS.                                                      **
+      ******************************************************************
+      *
+       9000-LEER-FENTRADA.
+      *
+           READ FENTRADA INTO ENTRADA-REC
+      *
+           EVALUATE FS-FENTRADA
+               WHEN CA-00
+                    ADD 1               TO CN-REG-LEIDOS-FENTRADA
+               WHEN CA-10
+                    SET SW-SI-FIN-FENTRADA     TO TRUE
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO FENTRADA'
+                    DISPLAY 'PARRAFO: 9000-LEER-FENTRADA'
+                    DISPLAY 'NOMBRE FICHERO: FENTRADA'
+                    DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FENTRADA-EXIT.
+           EXIT.

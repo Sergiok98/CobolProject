@@ -1,0 +1,250 @@
+      ******************************************************************
+      ** R U T C O N S 2.-RUTINA QUE RECIBE EL VALOR DEL ASEGURADO Y  **
+      **                  TIPO DE SEGURO Y CALCULA LA PRIMA ANUAL     **
+      ******************************************************************
+      *
+      ******************************************************************
+      ** IDENTIFICATION DIVISION                                      **
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. RUTREPOS.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 24/09/2024.
+      *
+      ******************************************************************
+      ** ENVIRONMENT DIVISION                                         **
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *
+      ******************************************************************
+      ** DATA DIVISION                                                **
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES.
+          05 CA-RUTINA                    PIC X(8) VALUE 'RUTREPOS'.
+          05 CA-00                        PIC X(2) VALUE '00'.
+          05 CA-0                         PIC X(1) VALUE '0'.
+          05 CA-803                       PIC X(3) VALUE '803'.
+          05 CA-99                        PIC X(2) VALUE '99'.
+          05 CA-100                       PIC X(3) VALUE '100'.
+          05 CA-88                        PIC X(2) VALUE '88'.
+      *
+       01 CN-CONSTANTES.
+          05 CN-0                         PIC 9 VALUE 0.
+          05 CN-803                       PIC S9(4) VALUE -803.
+      *
+       01 WK-VARIABLES.
+          05 WK-PREF                      PIC X(2).
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+           EXEC SQL
+               INCLUDE TBCUENTA
+           END-EXEC.
+      *
+       LINKAGE SECTION.
+      *
+      *COPY DE LA RUTINA RUTOPERA
+      *
+       COPY CPYRREPO.
+      *
+      ******************************************************************
+      ** PROCEDURE DIVISION                                           **
+      ******************************************************************
+      *
+       PROCEDURE DIVISION USING CPY-CPYRREPO.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      ** 1000-INICIO                                                  **
+      ** INICIALIZAR VARIABLES                                        **
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE SALIDA-RUT
+                      ERRORES-RUTINA
+                      WK-VARIABLES
+                      DCLCUENTAS
+      *
+           MOVE CA-00                    TO COD-RETORNO
+      *
+           IF BANCO-RUT = SPACES OR LOW-VALUES
+      *
+              MOVE CA-99                 TO COD-RETORNO
+              MOVE CA-00                 TO COD-SUBRETORNO
+              MOVE '1000-INICIO'         TO PARRAFO-RUT
+              MOVE CA-RUTINA             TO NOMBRE-RUT
+              MOVE 'BANCO SIN INFORMAR'
+                                         TO DESCRIPCION-RUT
+              MOVE 'BANCO-RUT '
+                                         TO ELEMENTO-RUT
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF OFICINA-RUT = SPACES OR LOW-VALUES
+      *
+              MOVE CA-99                 TO COD-RETORNO
+              MOVE CA-00                 TO COD-SUBRETORNO
+              MOVE '1000-INICIO'         TO PARRAFO-RUT
+              MOVE CA-RUTINA             TO NOMBRE-RUT
+              MOVE 'OFICINA SIN INFORMAR'
+                                         TO DESCRIPCION-RUT
+              MOVE 'OFICINA-RUT'
+                                         TO ELEMENTO-RUT
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF DC-RUT = SPACES OR LOW-VALUES
+      *
+              MOVE CA-99                 TO COD-RETORNO
+              MOVE CA-00                 TO COD-SUBRETORNO
+              MOVE '1000-INICIO'         TO PARRAFO-RUT
+              MOVE CA-RUTINA             TO NOMBRE-RUT
+              MOVE 'DC SIN INFORMAR'
+                                         TO DESCRIPCION-RUT
+              MOVE 'DC-RUT'
+                                         TO ELEMENTO-RUT
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF NUM-CUENTA-RUT = SPACES OR LOW-VALUES
+      *
+              MOVE CA-99                 TO COD-RETORNO
+              MOVE CA-00                 TO COD-SUBRETORNO
+              MOVE '1000-INICIO'         TO PARRAFO-RUT
+              MOVE CA-RUTINA             TO NOMBRE-RUT
+              MOVE 'NUMERO DE CUENTA SIN INFORMAR'
+                                         TO DESCRIPCION-RUT
+              MOVE 'NUM-CUENTA-RUT'
+                                         TO ELEMENTO-RUT
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF TITULAR-RUT = SPACES OR LOW-VALUES
+      *
+              MOVE CA-99                 TO COD-RETORNO
+              MOVE CA-00                 TO COD-SUBRETORNO
+              MOVE '1000-INICIO'         TO PARRAFO-RUT
+              MOVE CA-RUTINA             TO NOMBRE-RUT
+              MOVE 'TITULAR SIN INFORMAR'
+                                         TO DESCRIPCION-RUT
+              MOVE 'TITULAR-RUT'
+                                         TO ELEMENTO-RUT
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2000-PROCESO                                                 **
+      ** BUSCAR EN LA TABLA PROVINCIAS EL PREFIJO Y GUARDAR EN LA     **
+      ** DCLGEN DE LA TABLA LOS CAMPOS PREFIJO Y PROVINCIAS           **
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           MOVE BANCO-RUT          TO TB-BANCO
+           MOVE OFICINA-RUT        TO TB-OFICINA
+           MOVE DC-RUT             TO TB-DC
+           MOVE NUM-CUENTA-RUT     TO TB-NUM-CUENTA
+           MOVE TITULAR-RUT        TO TB-TITULAR
+           MOVE SALDO-RUT          TO TB-SALDO
+      *
+           EXEC SQL
+              INSERT INTO CUENTAS VALUES (:TB-BANCO
+                                         ,:TB-OFICINA
+                                         ,:TB-DC
+                                         ,:TB-NUM-CUENTA
+                                         ,:TB-TITULAR
+                                         ,:TB-SALDO)
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN CN-0
+                    MOVE CA-0             TO COD-RETORNO
+                    INITIALIZE DCLCUENTAS
+      *
+               WHEN -803
+                    MOVE CA-803           TO COD-RETORNO
+                    MOVE CA-88            TO COD-SUBRETORNO
+                    MOVE CA-RUTINA        TO NOMBRE-RUT
+                    MOVE '2000-PROCESO'   TO PARRAFO-RUT
+                    MOVE 'REGISTRO DUPLICADO'
+                         TO DESCRIPCION-RUT
+                    MOVE SQLCODE          TO SQLCODE-RUT
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+               WHEN OTHER
+                    MOVE CA-99            TO COD-RETORNO
+                    MOVE CA-99            TO COD-SUBRETORNO
+                    MOVE CA-RUTINA        TO NOMBRE-RUT
+                    MOVE '2000-PROCESO'   TO PARRAFO-RUT
+                    MOVE 'SQL ERROR'
+                         TO DESCRIPCION-RUT
+                    MOVE SQLCODE          TO SQLCODE-RUT
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      *
+      ******************************************************************
+      ** 3000-FIN                                                     **
+      ** FINALIZAMOS EL PGM.                                          **
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           GOBACK
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *

@@ -1,0 +1,614 @@
+      ******************************************************************
+      *    I D E N T I F I C A T I O N   D I V I S I O N               *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      *
+       PROGRAM-ID. PGMTBWOR.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 29/08/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T       D I V I S I O N                 *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      * OBLIGATORIO, PARA DECLARAR LOS FICHEROS DE ENTRADA Y SALIDA
+           SELECT FENTRADA
+               ASSIGN TO FENTRADA
+               FILE STATUS IS FS-FENTRADA.
+      *
+           SELECT FTBWORK
+               ASSIGN TO FTBWORK
+               FILE STATUS IS FS-FTBWORK.
+      *
+           SELECT FSALIDA
+               ASSIGN TO FSALIDA
+               FILE STATUS IS FS-FSALIDA.
+      *
+           SELECT FERROR
+               ASSIGN TO FERROR
+               FILE STATUS IS FS-FERROR.
+      *
+           SELECT FTBSAL
+               ASSIGN TO FTBSAL
+               FILE STATUS IS FS-FTBSAL.
+      *
+      ******************************************************************
+      *    D A T A   D I V I S I O N                                   *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *    F I L E   S E C T I O N                                     *
+      ******************************************************************
+      *
+       FD FENTRADA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FENTRADA.
+      *
+       01  REG-FENTRADA            PIC X(6).
+      *
+       FD FTBWORK
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FTBWORK.
+
+       01  REG-FTBWORK             PIC X(34).
+      *
+       FD FSALIDA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FSALIDA.
+
+       01  REG-FSALIDA             PIC X(13).
+      *
+       FD FERROR
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FERROR.
+
+       01  REG-FERROR              PIC X(53).
+      *
+       FD FTBSAL
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FTBSAL.
+
+       01  REG-FTBSAL              PIC X(34).
+      *
+      ******************************************************************
+      *    W O R K I N G    S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                     PIC X(08) VALUE 'PGMTBWOR'.
+          05 CA-00                      PIC X(02) VALUE '00'.
+          05 CA-10                      PIC X(02) VALUE '10'.
+      *
+       01 CN-CONTADORES.
+          05 CN-REG-LEIDOS-FENTRADA     PIC 9(03).
+          05 CN-REG-LEIDOS-FTBWORK      PIC 9(03).
+          05 CN-REG-ESCRITOS-FSALIDA    PIC 9(03).
+          05 CN-REG-ESCRITOS-FERROR     PIC 9(03).
+          05 CN-REG-ESCRITOS-FTBSAL     PIC 9(03).
+      *
+       01 WK-VARIABLES.
+          05 WK-DESCUENTO               PIC 9(02)V9(02).
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FENTRADA                PIC X(02).
+          05 FS-FTBWORK                 PIC X(02).
+          05 FS-FSALIDA                 PIC X(02).
+          05 FS-FERROR                  PIC X(02).
+          05 FS-FTBSAL                  PIC X(02).
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-FENTRADA            PIC X(01).
+             88 SW-SI-FIN-FENTRADA               VALUE 'S'.
+             88 SW-NO-FIN-FENTRADA               VALUE 'N'.
+          05 SW-FIN-FTBWORK             PIC X(01).
+             88 SW-SI-FIN-FTBWORK                VALUE 'S'.
+             88 SW-NO-FIN-FTBWORK                VALUE 'N'.
+      *
+       01 TB-TABLA.
+          05 TB-TABLA-PRODUCTOS            OCCURS 10 TIMES
+                      INDEXED BY TB-INDICE.
+             10 TB-COD-PRODUCTO                PIC 9(03).
+             10 TB-NOMBRE-PRODUCTO             PIC X(20).
+             10 TB-STOCK                       PIC 9(03).
+             10 TB-PRECIO-PROD                 PIC 9(02)V9(02).
+             10 TB-DTO                         PIC 9(02)V9(02).
+      *
+      * CPY ENTRADA
+       COPY CPYPAPEL.
+      *
+      * CPY TBWORK
+       COPY CPYTBPAP.
+      *
+      * CPY DE SALIDA
+       COPY CPYPAPES.
+      *
+      * CPY DE ERRORES
+       COPY CPYPAPEE.
+      *
+      ******************************************************************
+      *    PROCEDURE DIVISION                                          *
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FENTRADA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE CN-CONTADORES
+                      FS-FILE-STATUS
+                      DATOS-PAPELERIA
+                      DATOS-TBPAPELERIA
+                      DATOS-PAPELERIA-S
+                      DATOS-PAPELERIA-ERR
+      *
+           SET SW-NO-FIN-FENTRADA TO TRUE
+           SET SW-NO-FIN-FTBWORK  TO TRUE
+      *
+           SET TB-INDICE          TO 1
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FTBWORK
+              THRU 9000-LEER-FTBWORK-EXIT
+      *
+      * TB-INDICE >= 10 POR SI ACASO VIENEN MAS DATOS QUE EL OCCURS
+           PERFORM 1200-LLENAR-TABLA
+              THRU 1200-LLENAR-TABLA-EXIT
+             UNTIL SW-SI-FIN-FTBWORK OR TB-INDICE >= 10
+      *
+           PERFORM 9100-LEER-FENTRADA
+              THRU 9100-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT FENTRADA
+                      FTBWORK
+                OUTPUT FSALIDA
+                       FERROR
+                       FTBSAL
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ENTRADA'
+              DISPLAY 'FS-FENTRAD: ' FS-FENTRADA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           IF FS-FTBWORK NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE LA TABLA WORKING'
+              DISPLAY 'FS-FTBBORK: ' FS-FTBWORK
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           IF FS-FERROR  NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ERROR'
+              DISPLAY 'FS-FERROR: ' FS-FERROR
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           IF FS-FTBSAL  NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE FTBSAL'
+              DISPLAY 'FS-FTBSAL: ' FS-FTBSAL
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1200-LLENAR-TABLA
+      ******************************************************************
+      *
+       1200-LLENAR-TABLA.
+      *
+           MOVE COD-PRODUCTO-TB     TO TB-COD-PRODUCTO(TB-INDICE)
+           MOVE NOMBRE-PRODUCTO-TB  TO TB-NOMBRE-PRODUCTO(TB-INDICE)
+           MOVE STOCK-TB            TO TB-STOCK(TB-INDICE)
+           MOVE PRECIO-PROD-TB      TO TB-PRECIO-PROD(TB-INDICE)
+           MOVE DTO-TB              TO TB-DTO(TB-INDICE)
+      *
+           SET TB-INDICE            UP BY 1
+      *
+           PERFORM 9000-LEER-FTBWORK
+              THRU 9000-LEER-FTBWORK-EXIT
+      *
+           .
+      *
+       1200-LLENAR-TABLA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           SET TB-INDICE TO 1
+      *
+           MOVE COD-PRODUCTO          TO COD-PRODUCTO-S
+           MOVE CANTIDAD              TO CANTIDAD-S
+      *
+      * BUSCAR EN LA TABLA POR COD-PRODUCTO Y CALCULAR EL TOTAL
+           SEARCH TB-TABLA-PRODUCTOS
+      *
+      * EL CODIGO NO EXISTE
+              AT END
+                   MOVE COD-PRODUCTO  TO COD-PRODUCTO-ERR
+                   MOVE 'CODIGO DE PRODUCTO NO ENCONTRADO'
+                     TO MENSAJE-ERROR
+      *
+                       PERFORM 2200-ESCRIBIR-ERROR
+                          THRU 2200-ESCRIBIR-ERROR-EXIT
+      *
+      * EL CODIGO EXISTE Y HAY STOCK
+              WHEN TB-COD-PRODUCTO(TB-INDICE) = COD-PRODUCTO AND
+                   CANTIDAD <= TB-STOCK(TB-INDICE)
+                   COMPUTE WK-DESCUENTO = ((CANTIDAD *
+                           TB-PRECIO-PROD(TB-INDICE))*
+                           TB-DTO(TB-INDICE)) / 100
+      *
+                   COMPUTE TOTAL =(CANTIDAD * TB-PRECIO-PROD(TB-INDICE))
+                                 - WK-DESCUENTO
+      *
+                     PERFORM 2100-ESCRIBIR-SALIDA
+                        THRU 2100-ESCRIBIR-SALIDA-EXIT
+      *
+      * EL CODIGO EXISTE PERO NO HAY STOCK
+              WHEN TB-COD-PRODUCTO(TB-INDICE) = COD-PRODUCTO AND
+                   CANTIDAD > TB-STOCK(TB-INDICE)
+                   MOVE COD-PRODUCTO  TO COD-PRODUCTO-ERR
+                   MOVE 'NO HAY SUFICIENTE STOCK'
+                     TO MENSAJE-ERROR
+      *
+                       PERFORM 2200-ESCRIBIR-ERROR
+                          THRU 2200-ESCRIBIR-ERROR-EXIT
+      *
+           END-SEARCH
+      *
+           PERFORM 9100-LEER-FENTRADA
+              THRU 9100-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-ESCRIBIR-SALIDA
+      ******************************************************************
+      *
+       2100-ESCRIBIR-SALIDA.
+      *
+           WRITE REG-FSALIDA FROM DATOS-PAPELERIA-S
+
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '2100-ESCRIBIR-SALIDA'
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+
+           ELSE
+      *
+      * RESTAMOS LA CANTIDAD COMPRADA AL STOCK TOTAL
+              COMPUTE TB-STOCK(TB-INDICE) = TB-STOCK(TB-INDICE)
+                      - CANTIDAD
+              INITIALIZE DATOS-PAPELERIA-S
+              ADD 1 TO CN-REG-ESCRITOS-FSALIDA
+           END-IF
+      *
+           .
+      *
+       2100-ESCRIBIR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2200-ESCRIBIR-ERROR
+      ******************************************************************
+      *
+       2200-ESCRIBIR-ERROR.
+      *
+           WRITE REG-FERROR FROM DATOS-PAPELERIA-ERR
+
+           IF FS-FERROR NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE ERRORES'
+              DISPLAY 'FS-FERROR: ' FS-FERROR
+              DISPLAY '2200-ESCRIBIR-ERROR'
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+
+           ELSE
+              INITIALIZE DATOS-PAPELERIA-ERR
+              ADD 1 TO CN-REG-ESCRITOS-FERROR
+           END-IF
+      *
+           .
+      *
+       2200-ESCRIBIR-ERROR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2300-INFORMA-TBWSALIDA
+      * MOVEMOS LOS VALOES FINALES DE LA TABLA AL LA CPY DE LA TBWORK
+      * PARA ESCRIBIRLOS EN EL FICHERO DE SALIDA
+      ******************************************************************
+      *
+       2300-INFORMA-TBWSALIDA.
+      *
+      *
+           PERFORM VARYING TB-INDICE FROM 1 BY 1
+             UNTIL TB-INDICE > 10
+      *
+             MOVE TB-COD-PRODUCTO(TB-INDICE)    TO COD-PRODUCTO-TB
+             MOVE TB-NOMBRE-PRODUCTO(TB-INDICE) TO NOMBRE-PRODUCTO-TB
+             MOVE TB-STOCK(TB-INDICE)           TO STOCK-TB
+             MOVE TB-PRECIO-PROD(TB-INDICE)     TO PRECIO-PROD-TB
+             MOVE TB-DTO(TB-INDICE)             TO DTO-TB
+      *
+             PERFORM 2350-ESCRIBIR-TBWSALIDA
+                THRU 2350-ESCRIBIR-TBWSALIDA-EXIT
+      *
+           END-PERFORM
+      *
+           .
+      *
+       2300-INFORMA-TBWSALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2350-ESCRIBIR-TBWSALIDA
+      ******************************************************************
+      *
+       2350-ESCRIBIR-TBWSALIDA.
+      *
+           WRITE REG-FTBSAL FROM DATOS-TBPAPELERIA
+
+           IF FS-FTBSAL NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO FTBSAL'
+              DISPLAY 'FS-FTBSAL: ' FS-FTBSAL
+              DISPLAY '2200-ESCRIBIR-ERROR'
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+
+           ELSE
+              INITIALIZE DATOS-TBPAPELERIA
+              ADD 1 TO CN-REG-ESCRITOS-FTBSAL
+           END-IF
+      *
+           .
+      *
+       2350-ESCRIBIR-TBWSALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3000-FIN
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-ESTADISTICAS
+              THRU 3200-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+                 FTBWORK
+                 FSALIDA
+                 FERROR
+                 FTBSAL
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE ENTRADA'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FTBWORK NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE LA TABLA WORKING'
+              DISPLAY 'FS-FTBWORK: ' FS-FTBWORK
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FERROR NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE ERROR'
+              DISPLAY 'FS-FERROR: ' FS-FERROR
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FTBSAL NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE FTBSAL'
+              DISPLAY 'FS-FTBSAL: ' FS-FTBSAL
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-ESTADISTICAS
+      ******************************************************************
+      *
+       3200-ESTADISTICAS.
+      *
+           DISPLAY '************************************************'
+           DISPLAY '****    ESTADISTICAS DEL PGM PGMTBWOR   ********'
+           DISPLAY '************************************************'
+           DISPLAY '*REG. LEIDOS ENTRADA: 'CN-REG-LEIDOS-FENTRADA
+           DISPLAY '*REG. LEIDOS TBWORK: 'CN-REG-LEIDOS-FTBWORK
+           DISPLAY '*REG. ESCRITOS EN SALIDA: 'CN-REG-ESCRITOS-FSALIDA
+           DISPLAY '*REG. ESCRITOS EN ERROR: 'CN-REG-ESCRITOS-FERROR
+           DISPLAY '*REG. ESCRITOS TBWORKSAL: 'CN-REG-ESCRITOS-FTBSAL
+      *
+           .
+      *
+       3200-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9000-LEER-FTBWORK
+      ******************************************************************
+      *
+       9000-LEER-FTBWORK.
+      *
+           READ FTBWORK INTO DATOS-TBPAPELERIA
+      *
+           EVALUATE FS-FTBWORK
+               WHEN CA-00
+                    ADD 1 TO CN-REG-LEIDOS-FTBWORK
+               WHEN CA-10
+                    INITIALIZE DATOS-TBPAPELERIA
+                    SET SW-SI-FIN-FTBWORK TO TRUE
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO DE FTBWORK'
+                    DISPLAY 'FS-FTBWORK: ' FS-FTBWORK
+                    DISPLAY '9000-LEER-FTBWORK'
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FTBWORK-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9100-LEER-FENTRADA
+      ******************************************************************
+      *
+       9100-LEER-FENTRADA.
+      *
+           READ FENTRADA INTO DATOS-PAPELERIA
+      *
+           EVALUATE FS-FENTRADA
+               WHEN CA-00
+                    ADD 1 TO CN-REG-LEIDOS-FENTRADA
+               WHEN CA-10
+                    SET SW-SI-FIN-FENTRADA TO TRUE
+      *
+      * AL ACABAR DE LEER EL FICHERO DE ENTRADA INFORMAMOS PARA
+      * DESPUES ESCRIBIR LOS VALORES ACTUALIZADOS DE LA TBWORK
+                    PERFORM 2300-INFORMA-TBWSALIDA
+                       THRU 2300-INFORMA-TBWSALIDA-EXIT
+      *
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO DE ENTRADA'
+                    DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+                    DISPLAY '9100-LEER-FENTRADA'
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       9100-LEER-FENTRADA-EXIT.
+           EXIT.
+      *

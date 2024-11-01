@@ -1,0 +1,895 @@
+      ******************************************************************
+      *     I D E N T I F I C A T I O N        D I V I S I O N
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      * DESCRIPCION DEL PGM: PGM QUE A PARTIR DEL FICHERO DE ENTRADA
+      * DE SOCIOS, GENERA DOS FICHEROS DE SALIDA, CON LA INFORMACION
+      * DE LOS SOCIOS VIP (FICHERO 1) Y LA INFORMACION DE LOS SOCIOS
+      * NO VIP (FICHERO 2).
+      ******************************************************************
+      *
+       PROGRAM-ID. CRUDPGMR.
+       AUTHOR. SERGIO POVEDA.
+       INSTALLATION. SANTANDER UK.
+       DATE-WRITTEN. 14/06/2023.
+       DATE-COMPILED. 14/06/2023.
+      *
+      ******************************************************************
+      *
+      *   E N V I R O N M E N T              D I V I S I O N
+      *   ---------------------              ---------------
+      *
+      * DEFINIR LOS FICHEROS DE ENTRADA Y SALIDA QUE VAN A SER USADOS
+      * DENTRO DEL PGM COBOL. RELACIONAR LOS NOMBRES LOGICOS DE LOS
+      * FICHEROS EN EL PGRAMA CON NOMBRES DE LOS FICHEROS DE LOS JCLS.
+      * DOS SECCIONES:
+      *     - CONFIGURATION SECTION
+      *       DEFINIR EL NOMBRE DE LOS PROCESADORES DONDE SE COMPILA Y
+      *       EJECUTA EL PGM (NO ES OBLIGATORIO).
+      *     - INPUT-OUTPUT SECTION
+      *       DEFINIR LOS DISPOSITIVOS PERIFERICOS (IMPRESORAS, ETC)
+      *       SE DEFINEN TAMBIEN LOS FICHEROS DE E/S QUE SE USARAN EN EL
+      *       PRGRAMA.
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *
+           SELECT FENTRADA  ASSIGN TO FENTRADA
+           FILE STATUS IS FS-FENTRADA.
+      *
+           SELECT FSALIDA   ASSIGN TO FSALIDA
+           FILE STATUS IS FS-FSALIDA.
+      *
+           SELECT FERRORES  ASSIGN TO FERRORES
+           FILE STATUS IS FS-FERRORES.
+      *
+      ******************************************************************
+      *   D A T A                D I V I S I O N
+      *   --------------------------------------
+      *
+      * IDENTIFICA LOS NOMBRES DE DATOS UTILIZADOS EN EL PGM.
+      * CONTIENE 3 SECCIONES:
+      *      - FILE SECTION.
+      *        DESCRIBIR LOS FICHEROS DE ENTRADA Y SALIDA QUE SE USAN
+      *        EN EL PGM COBOL.
+      *      - WORKING STORAGE SECTION.
+      *        DEFINIR LOS CAMPOS DE TRABAJO NECESARIOS PARA EL PGM.
+      *        (VARIABLES, CONSTANTES, ACUMULADORES, CONTADORES,
+      *         SWITHCHES, COPYS, DCLGENS, TABLAS INTERNAS, CURSORES...
+      *      - LINKAGE SECTION.
+      *        SE USARA CUANDO EL PGM SEA DE TIPO RUTINA, YA QUE ES LA
+      *        ZONA QUE SIRVE COMO COMUNICACION CON EL PGM QUE LO INVOCA
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *   F I L E       S E C T I O N
+      ******************************************************************
+      *
+       FD FENTRADA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FENTRADA.
+      *
+       01  REG-FENTRADA            PIC X(192).
+      *
+       FD FSALIDA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FSALIDA.
+      *
+       01  REG-FSALIDA             PIC X(191).
+      *
+       FD FERRORES
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FERRORES.
+      *
+       01  REG-FERRORES            PIC X(085).
+      *
+      ******************************************************************
+      *   W O R K I N G       S T O R A G E      S E C T I O N
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *LUGAR DONDE DECLARAMOS CONSTANTES, VARIABLES, COPYS, SWITHCHES
+       01  FS-FILE-STATUS.
+           05  FS-FSALIDA              PIC X(02).
+           05  FS-FENTRADA             PIC X(02).
+           05  FS-FERRORES             PIC X(02).
+      *
+       01  CN-CONTADORES-FICHEROS.
+           05  CN-REG-LEIDOS-FENTRADA  PIC 9(03).
+           05  CN-REG-ESCRITO-FSALIDA  PIC 9(03).
+           05  CN-REG-ESCRITO-FERRORES PIC 9(03).
+           05  CN-REG-DAREPOS-UPDATE   PIC 9(03).
+      *
+       01  SW-SWITCHES.
+           05  SW-FIN-FENTRADA         PIC X(01).
+               88  SW-NO-FIN-FENTRADA  VALUE 'N'.
+               88  SW-SI-FIN-FENTRADA  VALUE 'S'.
+      *
+       01  CA-CONSTANTES.
+           05  CA-RUTINA-I             PIC X(08) VALUE 'RUTCUINS'.
+           05  CA-RUTINA-U             PIC X(08) VALUE 'RUTCUUPD'.
+           05  CA-RUTINA-D             PIC X(08) VALUE 'RUTCUDEL'.
+           05  CA-RUTINA-S             PIC X(08) VALUE 'RUTCUSEL'.
+           05  CA-PGM                  PIC X(08) VALUE 'CRUDPGMR'.
+           05  CA-KO                   PIC X(02) VALUE 'KO'.
+           05  CA-OK                   PIC X(02) VALUE 'OK'.
+      *
+       01 WK-VARIBLES.
+          05 WK-CLAVE-ENT.
+             10 MATRICULA-CLAVE        PIC X(04).
+      *COPY DEL FICHERO DE ENTRADA
+      *
+       COPY CPYEMPE.
+      *
+      *COPY DEL FICHERO DE SALIDA
+      *
+       COPY CPYEMPS.
+      *
+      *COPY DEL FICHERO DE ERRORES
+      *
+       COPY CPYEMPER.
+      *
+      *COPYS PARA LAS RUTINAS
+      *
+       COPY CRUIUCPY.
+      *
+       COPY CRUDECPY.
+      *
+       COPY CRUSECPY.
+      *
+           EXEC SQL
+               INCLUDE TBDAREPO
+           END-EXEC.
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+      ******************************************************************
+      *   P R O C E D U R E             D I V I S I O N
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FENTRADA
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES-FICHEROS
+                      DATOS-EMPLEADOS-E
+                      DATOS-EMPLEADOS-S
+                      DATOS-EMPLEADOS-ERR
+                      CPY-RUTINA-DELETE
+                      CPY-RUTINA-INUP
+                      CPY-RUTINA-SEL
+                      DCLDAREPOS
+                      WK-VARIBLES
+      *
+           SET SW-NO-FIN-FENTRADA      TO TRUE
+           MOVE CA-PGM                 TO TB-NOMBRE-PGM
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 1150-CONSULTAR-DAREPOS
+              THRU 1150-CONSULTAR-DAREPOS-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS.
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT FENTRADA
+           OPEN OUTPUT FSALIDA
+           OPEN OUTPUT FERRORES
+      *
+           IF FS-FENTRADA NOT = '00'
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ENTRADA'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '1100-ABRIR-FICHEROS'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FERRORES NOT = '00'
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ERRORES'
+              DISPLAY 'FS-FSALIDA: ' FS-FERRORES
+              DISPLAY '1100-ABRIR-FICHEROS'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1150-CONSULTAR-DAREPOS
+      ******************************************************************
+      *
+       1150-CONSULTAR-DAREPOS.
+      *
+           DISPLAY TB-NOMBRE-PGM
+           EXEC SQL
+                 SELECT ESTADO
+                       ,VALOR_CLAVE
+                      INTO
+                        :TB-ESTADO
+                       ,:TB-VALOR-CLAVE-TEXT
+                      FROM DAREPOS
+                   WHERE NOMBRE_PGM = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+      *
+              WHEN 0
+      *
+                EVALUATE TB-ESTADO
+                    WHEN CA-KO
+      *
+                         PERFORM 9000-LEER-FENTRADA
+                            THRU 9000-LEER-FENTRADA-EXIT
+                           UNTIL WK-CLAVE-ENT > TB-VALOR-CLAVE-TEXT
+      *
+                    WHEN CA-OK
+                         PERFORM 9000-LEER-FENTRADA
+                            THRU 9000-LEER-FENTRADA-EXIT
+      *
+                    WHEN OTHER
+
+                         PERFORM 3000-FIN
+                            THRU 3000-FIN-EXIT
+                END-EVALUATE
+      *
+              WHEN 100
+      *
+                   PERFORM 1160-INSERTAR-DAREPOS
+                      THRU 1160-INSERTAR-DAREPOS-EXIT
+                   PERFORM 9000-LEER-FENTRADA
+                      THRU 9000-LEER-FENTRADA-EXIT
+      *
+              WHEN OTHER
+      *
+                 DISPLAY 'ERROR SELECT DE DAREPOS'
+                 DISPLAY 'SQLCODE: ' SQLCODE
+                 MOVE SQLCODE TO WK-SQLCODE
+                 DISPLAY 'SQLCODE BIEN: ' WK-SQLCODE
+                 DISPLAY 'PARRAFO:1150-CONSULTAR-DAREPOS'
+                 DISPLAY 'TABLA: DAREPOS'
+      *
+                 PERFORM 3000-FIN
+                    THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       1150-CONSULTAR-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1160-INSERTAR-DAREPOS
+      ******************************************************************
+      *
+       1160-INSERTAR-DAREPOS.
+      *
+           MOVE CA-KO                    TO TB-ESTADO
+           INITIALIZE TB-VALOR-CLAVE-TEXT
+      *
+           EXEC SQL
+              INSERT INTO DAREPOS VALUES (:TB-NOMBRE-PGM,
+                                          :TB-ESTADO,
+                                          :TB-VALOR-CLAVE-TEXT)
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+      *
+              WHEN 0
+      *
+                   CONTINUE
+      *
+              WHEN -803
+      *
+                   DISPLAY 'ERROR AL INSERTAR EN DAREPOS POR REG DUPLI'
+                   DISPLAY 'RETORNO: 99'
+                   DISPLAY 'SQLCODE: ' SQLCODE
+                   DISPLAY 'PARRAFO: INSERTAR-DAREPOS'
+                   DISPLAY 'TABLA  : DAREPOS'
+      *
+                   PERFORM 3000-FIN
+                      THRU 3000-FIN-EXIT
+      *
+              WHEN OTHER
+      *
+                 DISPLAY 'ERROR AL INSERTAR EN DAREPOS'
+                 DISPLAY 'RETORNO: 99'
+                 DISPLAY 'SQLCODE: ' SQLCODE
+                 MOVE SQLCODE TO WK-SQLCODE
+                 DISPLAY 'SQLCODE BIEN: 'WK-SQLCODE
+                 DISPLAY 'PARRAFO: 1160-INSERTAR-DAREPOS'
+                 DISPLAY 'TABLA: DAREPOS'
+      *
+                 PERFORM 3000-FIN
+                    THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       1160-INSERTAR-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           DISPLAY 'PROCESO'
+           EVALUATE ACCION
+               WHEN 'A'
+                    PERFORM 2100-INSERT
+                       THRU 2100-INSERT-EXIT
+      *
+                    PERFORM 2050-UPDATE-DAREPOS
+                       THRU 2050-UPDATE-DAREPOS-EXIT
+               WHEN 'M'
+                    PERFORM 2200-UPDATE
+                       THRU 2200-UPDATE-EXIT
+      *
+                    PERFORM 2050-UPDATE-DAREPOS
+                       THRU 2050-UPDATE-DAREPOS-EXIT
+               WHEN 'B'
+                    PERFORM 2300-DELETE
+                       THRU 2300-DELETE-EXIT
+      *
+                    PERFORM 2050-UPDATE-DAREPOS
+                       THRU 2050-UPDATE-DAREPOS-EXIT
+               WHEN 'C'
+                    PERFORM 2400-SELECT
+                       THRU 2400-SELECT-EXIT
+      *
+                    PERFORM 2050-UPDATE-DAREPOS
+                       THRU 2050-UPDATE-DAREPOS-EXIT
+
+           END-EVALUATE
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2050-UPDATE-DAREPOS
+      ******************************************************************
+      *
+       2050-UPDATE-DAREPOS.
+      *
+           MOVE WK-CLAVE-ENT    TO TB-VALOR-CLAVE-TEXT
+           MOVE CA-PGM          TO TB-NOMBRE-PGM
+           MOVE CA-KO           TO TB-ESTADO
+      *
+           EXEC SQL
+              UPDATE DAREPOS
+                 SET VALOR_CLAVE = :TB-VALOR-CLAVE-TEXT
+                    ,ESTADO      = :TB-ESTADO
+               WHERE NOMBRE_PGM  = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+      *
+              WHEN 0
+      *
+                   ADD 1 TO CN-REG-DAREPOS-UPDATE
+      *
+              WHEN OTHER
+      *
+                   DISPLAY 'ERROR EN EL UPDATE DE DAREPOS'
+                   DISPLAY 'PARRAFO: 2050-UPDATE-DAREPOS'
+                   DISPLAY 'TABLA: DAREPOS'
+                   DISPLAY 'SQLCODE: ' SQLCODE
+      *
+                   PERFORM 3000-FIN
+                      THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           EXEC SQL
+              COMMIT
+           END-EXEC
+      *
+           .
+      *
+       2050-UPDATE-DAREPOS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-INSERT
+      ******************************************************************
+      *
+       2100-INSERT.
+      *
+           MOVE MATRICULA             TO MATRICULA-IU
+           MOVE APELLIDO              TO APELLIDO-IU
+           MOVE NOMBRE                TO NOMBRE-IU
+           MOVE CATEGORIA             TO CATEGORIA-IU
+           MOVE DEPARTAMENTO          TO DEPARTAMENTO-IU
+           MOVE SECCION               TO SECCION-IU
+           MOVE SALARIO               TO SALARIO-IU
+           MOVE FECHA-INGRESO         TO FECHA-INGRESO-IU
+           MOVE FECHA-NACIMIENTO      TO FECHA-NACIMIENTO-IU
+           MOVE ACCION                TO ACCION-IU
+      *
+           CALL CA-RUTINA-I USING CPY-RUTINA-INUP
+      *
+           EVALUATE COD-RETORNO-IU
+               WHEN '00'
+                    DISPLAY MATRICULA-IU ' REGISTRO INSERTADO'
+               WHEN '88'
+                    DISPLAY COD-RETORNO-IU
+                    DISPLAY PARRAFO-IU
+                    DISPLAY DESCRIPCION-IU
+                    DISPLAY SQLCODE-IU
+      *
+                    MOVE COD-RETORNO-IU TO COD-RET-ERR
+                    MOVE PARRAFO-IU TO PARRAFO-ERR
+                    MOVE DESCRIPCION-IU TO DESCRIPCION-ERR
+                    MOVE SQLCODE-IU TO WK-SQLCODE
+      *
+                    PERFORM 2700-ESCRIBIR-FERROR
+                       THRU 2700-ESCRIBIR-FERROR-EXIT
+      *
+               WHEN '99'
+                    DISPLAY COD-RETORNO-IU
+                    DISPLAY PARRAFO-IU
+                    DISPLAY DESCRIPCION-IU
+                    DISPLAY SQLCODE-IU
+      *
+                    MOVE COD-RETORNO-IU TO COD-RET-ERR
+                    MOVE PARRAFO-IU TO PARRAFO-ERR
+                    MOVE DESCRIPCION-IU TO DESCRIPCION-ERR
+                    MOVE SQLCODE-IU TO WK-SQLCODE
+      *
+                    PERFORM 2700-ESCRIBIR-FERROR
+                       THRU 2700-ESCRIBIR-FERROR-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2100-INSERT-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2200-UPDATE
+      ******************************************************************
+      *
+       2200-UPDATE.
+      *
+           MOVE MATRICULA             TO MATRICULA-IU
+           MOVE APELLIDO              TO APELLIDO-IU
+           MOVE NOMBRE                TO NOMBRE-IU
+           MOVE CATEGORIA             TO CATEGORIA-IU
+           MOVE DEPARTAMENTO          TO DEPARTAMENTO-IU
+           MOVE SECCION               TO SECCION-IU
+           MOVE SALARIO               TO SALARIO-IU
+           MOVE FECHA-INGRESO         TO FECHA-INGRESO-IU
+           MOVE FECHA-NACIMIENTO      TO FECHA-NACIMIENTO-IU
+           MOVE ACCION                TO ACCION-IU
+      *
+           CALL CA-RUTINA-U USING CPY-RUTINA-INUP
+      *
+           EVALUATE COD-RETORNO-IU
+               WHEN '00'
+                    DISPLAY MATRICULA-IU ' REGISTRO INSERTADO'
+               WHEN '88'
+                    DISPLAY COD-RETORNO-IU
+                    DISPLAY PARRAFO-IU
+                    DISPLAY DESCRIPCION-IU
+                    DISPLAY SQLCODE-IU
+      *
+                    MOVE COD-RETORNO-IU TO COD-RET-ERR
+                    MOVE PARRAFO-IU TO PARRAFO-ERR
+                    MOVE DESCRIPCION-IU TO DESCRIPCION-ERR
+                    MOVE SQLCODE-IU TO WK-SQLCODE
+      *
+                    PERFORM 2700-ESCRIBIR-FERROR
+                       THRU 2700-ESCRIBIR-FERROR-EXIT
+      *
+               WHEN '99'
+                    DISPLAY COD-RETORNO-IU
+                    DISPLAY PARRAFO-IU
+                    DISPLAY DESCRIPCION-IU
+                    DISPLAY SQLCODE-IU
+      *
+                    MOVE COD-RETORNO-IU TO COD-RET-ERR
+                    MOVE PARRAFO-IU TO PARRAFO-ERR
+                    MOVE DESCRIPCION-IU TO DESCRIPCION-ERR
+                    MOVE SQLCODE-IU TO WK-SQLCODE
+      *
+                    PERFORM 2700-ESCRIBIR-FERROR
+                       THRU 2700-ESCRIBIR-FERROR-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2200-UPDATE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2300-DELETE
+      ******************************************************************
+      *
+       2300-DELETE.
+      *
+           MOVE MATRICULA             TO MATRICULA-DELETE
+      *
+           CALL CA-RUTINA-D USING CPY-RUTINA-DELETE
+      *
+           EVALUATE COD-RETORNO-DELETE
+               WHEN '00'
+                    DISPLAY MATRICULA-DELETE ' REGISTRO BORRADO'
+               WHEN '88'
+                    DISPLAY COD-RETORNO-DELETE
+                    DISPLAY PARRAFO-DELETE
+                    DISPLAY DESCRIPCION-DELETE
+                    DISPLAY SQLCODE-DELETE
+      *
+                    MOVE COD-RETORNO-DELETE TO COD-RET-ERR
+                    MOVE PARRAFO-DELETE TO PARRAFO-ERR
+                    MOVE DESCRIPCION-DELETE TO DESCRIPCION-ERR
+                    MOVE SQLCODE-DELETE TO WK-SQLCODE
+      *
+                    PERFORM 2700-ESCRIBIR-FERROR
+                       THRU 2700-ESCRIBIR-FERROR-EXIT
+      *
+               WHEN '99'
+                    DISPLAY COD-RETORNO-DELETE
+                    DISPLAY PARRAFO-DELETE
+                    DISPLAY DESCRIPCION-DELETE
+                    DISPLAY SQLCODE-DELETE
+      *
+                    MOVE COD-RETORNO-DELETE TO COD-RET-ERR
+                    MOVE PARRAFO-DELETE TO PARRAFO-ERR
+                    MOVE DESCRIPCION-DELETE TO DESCRIPCION-ERR
+                    MOVE SQLCODE-DELETE TO WK-SQLCODE
+      *
+                    PERFORM 2700-ESCRIBIR-FERROR
+                       THRU 2700-ESCRIBIR-FERROR-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       2300-DELETE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2400-SELECT
+      ******************************************************************
+      *
+       2400-SELECT.
+      *
+           MOVE MATRICULA             TO MATRICULA-SEL
+      *
+           CALL CA-RUTINA-S USING CPY-RUTINA-SEL
+      *
+           EVALUATE COD-RETORNO-SEL
+               WHEN '00'
+                    PERFORM 2500-INFORMAR-FSALIDA
+                       THRU 2500-INFORMAR-FSALIDA-EXIT
+      *
+                    PERFORM 2600-ESCRIBIR-FSALIDA
+                       THRU 2600-ESCRIBIR-FSALIDA-EXIT
+               WHEN '88'
+                    DISPLAY COD-RETORNO-SEL
+                    DISPLAY PARRAFO-SEL
+                    DISPLAY DESCRIPCION-SEL
+                    DISPLAY SQLCODE-SEL
+      *
+                    MOVE COD-RETORNO-SEL TO COD-RET-ERR
+                    MOVE PARRAFO-SEL TO PARRAFO-ERR
+                    MOVE DESCRIPCION-SEL TO DESCRIPCION-ERR
+                    MOVE SQLCODE-SEL TO WK-SQLCODE
+      *
+                    PERFORM 2700-ESCRIBIR-FERROR
+                       THRU 2700-ESCRIBIR-FERROR-EXIT
+      *
+               WHEN '99'
+                    DISPLAY COD-RETORNO-SEL
+                    DISPLAY PARRAFO-SEL
+                    DISPLAY DESCRIPCION-SEL
+                    DISPLAY SQLCODE-SEL
+      *
+                    MOVE COD-RETORNO-SEL TO COD-RET-ERR
+                    MOVE PARRAFO-SEL TO PARRAFO-ERR
+                    MOVE DESCRIPCION-SEL TO DESCRIPCION-ERR
+                    MOVE SQLCODE-SEL TO WK-SQLCODE
+      *
+                    PERFORM 2700-ESCRIBIR-FERROR
+                       THRU 2700-ESCRIBIR-FERROR-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2400-SELECT-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-INFORMAR-SALIDA
+      ******************************************************************
+      *
+       2500-INFORMAR-FSALIDA.
+      *
+           MOVE MATRICULA-SEL-S         TO MATRICULA-S
+           MOVE APELLIDO-SEL-S          TO APELLIDO-S
+           MOVE NOMBRE-SEL-S            TO NOMBRE-S
+           MOVE CATEGORIA-SEL-S         TO CATEGORIA-S
+           MOVE DEPARTAMENTO-SEL-S      TO DEPARTAMENTO-S
+           MOVE SECCION-SEL-S           TO SECCION-S
+           MOVE SALARIO-SEL-S           TO SALARIO-S
+           MOVE FECHA-INGRESO-SEL-S     TO FECHA-INGRESO-S
+           MOVE FECHA-NACIMIENTO-SEL-S  TO FECHA-NACIMIENTO-S
+      *
+           .
+      *
+       2500-INFORMAR-FSALIDA-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 2200-ESCRIBIR-FSALIDA
+      *****************************************************************
+      *
+       2600-ESCRIBIR-FSALIDA.
+      *
+           WRITE REG-FSALIDA FROM DATOS-EMPLEADOS-S
+      *
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL ESCRIBIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '2200-ESCRIBIR-FSALIDA'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           ELSE
+              ADD 1              TO CN-REG-ESCRITO-FSALIDA
+           END-IF
+      *
+           .
+      *
+       2600-ESCRIBIR-FSALIDA-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 2200-ESCRIBIR-FSALIDA
+      *****************************************************************
+      *
+       2700-ESCRIBIR-FERROR.
+      *
+           WRITE REG-FERRORES FROM DATOS-EMPLEADOS-ERR
+      *
+           IF FS-FERRORES NOT = '00'
+              DISPLAY 'ERROR AL ESCRIBIR EL FICHERO DE ERRORES'
+              DISPLAY 'FS-FERRORES: ' FS-FERRORES
+              DISPLAY '2700-ESCRIBIR-FERROR'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           ELSE
+              ADD 1              TO CN-REG-ESCRITO-FERRORES
+           END-IF
+      *
+           .
+      *
+       2700-ESCRIBIR-FERROR-EXIT.
+           EXIT.
+      *
+      *****************************************************************
+      * 3000-FIN
+      *****************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-MOSTRAR-ESTADISTICAS
+              THRU 3200-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS.
+      ******************************************************************
+      *
+        3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+                 FSALIDA
+                 FERRORES
+      *
+           IF FS-FENTRADA NOT = '00'
+              DISPLAY 'ERROR AL CERRAR FICHERO ENTRADA FENTRADA'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+              DISPLAY '3100-CERRAR-FICHEROS'
+      *
+           END-IF
+      *
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL CERRAR FICHERO ENTRADA FSALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '3100-CERRAR-FICHEROS'
+      *
+           END-IF
+      *
+           IF FS-FERRORES NOT = '00'
+              DISPLAY 'ERROR AL CERRAR FICHERO SALIDA FERRORES'
+              DISPLAY 'FS-FSALIDA: ' FS-FERRORES
+              DISPLAY '3100-CERRAR-FICHEROS'
+      *
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-MOSTRAR-ESTADISTICAS.
+      ******************************************************************
+      *
+       3200-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '***************************************************'
+           DISPLAY '*****    ESTADISTICAS DEL PGM PGMPREST        *****'
+           DISPLAY '***************************************************'
+           DISPLAY '*REG. LEIDOS FENTRADA:     ' CN-REG-LEIDOS-FENTRADA
+           DISPLAY '*REG. ESCRITOS FSALIDA:    ' CN-REG-ESCRITO-FSALIDA
+           DISPLAY '*REG. ESCRITOS FERRORES: ' CN-REG-ESCRITO-FERRORES
+           DISPLAY '*REG. DAREPOS UPDATE: ' CN-REG-DAREPOS-UPDATE
+           DISPLAY '***************************************************'
+      *
+           .
+      *
+       3200-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9000-LEER-FENTRADA
+      ******************************************************************
+      *
+        9000-LEER-FENTRADA.
+      *
+           READ FENTRADA INTO DATOS-EMPLEADOS-E
+      *
+           EVALUATE FS-FENTRADA
+               WHEN '00'
+                    ADD 1                    TO CN-REG-LEIDOS-FENTRADA
+                    MOVE MATRICULA           TO MATRICULA-CLAVE
+               WHEN '10'
+                   SET SW-SI-FIN-FENTRADA    TO TRUE
+                   PERFORM 9100-DAREPOS-OK
+                      THRU 9100-DAREPOS-OK-EXIT
+               WHEN OTHER
+                   DISPLAY 'ERROR AL LEER EL FICHERO DE FENTRADA'
+                   DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+                   DISPLAY '9000-LEER-FSOCIOS'
+      *
+                  PERFORM 3000-FIN
+                     THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FENTRADA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9100-DAREPOS-OK
+      ******************************************************************
+      *
+       9100-DAREPOS-OK.
+      *
+           MOVE CA-OK           TO TB-ESTADO
+           INITIALIZE TB-VALOR-CLAVE-TEXT
+      *
+           EXEC SQL
+              UPDATE DAREPOS
+                 SET ESTADO      = :TB-ESTADO
+                    ,VALOR_CLAVE = :TB-VALOR-CLAVE-TEXT
+               WHERE NOMBRE_PGM  = :TB-NOMBRE-PGM
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+      *
+              WHEN 0
+      *
+                   CONTINUE
+      *
+              WHEN OTHER
+      *
+                   DISPLAY 'ERROR AL PONER OK EN DAREPOS'
+                   DISPLAY 'PARRAFO: 9100-DAREPOS-OK'
+                   DISPLAY 'TABLA: DAREPOS'
+                   DISPLAY 'SQLCODE: ' SQLCODE
+      *
+                   PERFORM 3000-FIN
+                      THRU 3000-FIN-EXIT
+      *
+           END-EVALUATE
+      *
+           EXEC SQL
+              COMMIT
+           END-EXEC
+      *
+           .
+      *
+       9100-DAREPOS-OK-EXIT.
+           EXIT.
+      *

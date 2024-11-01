@@ -1,0 +1,340 @@
+      ******************************************************************
+      *   I D E N T I F I C A T I O N  D I V I S I O N                 *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      *   PRIMER PROGRAMA COBOL DONDE APRENDEREMOS LA ESCTRUCTURA      *
+      *   BASICA DE UN PROGRAMA COBOL.                                 *
+      ******************************************************************
+      *
+       PROGRAM-ID. CBCURPR.
+       AUTHOR. JOSE CARLOS.
+       INSTALLATION. EOI.
+       DATE-WRITTEN. 05/06/2023.
+       DATE-COMPILED. 05/06/2023.
+      *
+      ******************************************************************
+      *                                                                *
+      *   E N V I R O N M E N T     D I V I S I O N                    *
+      *   ---------------------     ---------------                    *
+      *                                                                *
+      * DEFINIR FICHEROS QUE VAN A SER USADOS DURANTE EL PROGRAMA      *
+      * RELACIONAR NOMBRES LOGICOS DE LOS ARCHIVOS POR EL PROGRAMA     *
+      * CON LOS NOMBRES REALES DEL JCL                                 *
+      * DOS SECIONES:                                                  *
+      *    - CONFIGURATION SECTION                                     *
+      *      SE DECLARA EL NOMBRE DE LOS PROCESADORES DONDE SE COMPILA *
+      *      Y EJECUTA EL PROGRAMA (NO ES OBLIGATORIO)                 *
+      *    - INPUT-OUTPUT SECTION                                      *
+      *      SE DECLARAN DISPOSITIVOS PERIFERICOS (IMPRESORAS..)       *
+      *      TIENE FILE CONTROL QUE ES OBLIGATORIO CUANDO SE USAN      *
+      *      FICHEROS EN EL PROGRAMA, YA QUE LOS DESCRIBE.             *
+      *                                                                *
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * A PARTIR DE AQUI SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      *
+           SELECT FSALIDA
+               ASSIGN TO SALIDA
+               FILE STATUS IS FS-FSALIDA.
+      *
+      ******************************************************************
+      *                                                                *
+      *   D A T A     D I V I S I O N                                  *
+      *   ---------------------------                                  *
+      *                                                                *
+      * IDENTIFICA TODOS LOS NOMBRES DE DATOS UTILIZADOS EN EL PROGRAMA*
+      * SECCIONES:                                                     *
+      *     - FILE SECTION.                                            *
+      *       DESCRIBE FICHEROS DE ENTRADA Y SALIDA QUE SE USAN EN EL  *
+      *       PROGRAMA.                                                *
+      *     - WORKING STORAGE SECTION.                                 *
+      *       DEFINIR LOS CAMPOS DE TRABAJO NECESARIOS.                *
+      *     - LINKAGE SECTION.                                         *
+      *       SE USARA CUANDO EL PROGRAMA SEA UNA RUTINA, YA QUE ES    *
+      *       LA ZONA QUE SIRVE PARA COMUNICARSE CON EL PROGRAMA QUE   *
+      *       LA INVOCA.                                               *
+      *                                                                *
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *   F I L E    S E C T I O N                                     *
+      ******************************************************************
+      *
+       FD FSALIDA
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-SAL.
+      *
+       01 REG-SAL           PIC X(22).
+      *
+      ******************************************************************
+      *   W O R K I N G   S T O R A G E                                *
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      * LUGAR DONDE DECLARAREMOS CONSTANTES, VARIABLES, COPYS, SWITCHES.
+      * CONSTANTES ALFANUMERICAS
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                 PIC X(07) VALUE 'CBCURPR'.
+          05 CA-00                  PIC X(02) VALUE '00'.
+      *
+       01 CN-CONSTANTES-NUM.
+          05 CN-1                   PIC 9(01) VALUE 1.
+          05 CN-2                   PIC 9(01) VALUE 2.
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FSALIDA             PIC X(02).
+      *
+       01 WK-VARIABLES.
+          05 WK-SQLCODE             PIC -999.
+          05 WK-ESCRITOS-1          PIC 9(03) VALUE 000.
+      *
+       01 SWITCHES.
+          05 SW-FIN-CURSOR          PIC X(01) VALUE 'N'.
+             88 SI-FIN-CURSOR                 VALUE 'S'.
+             88 NO-FIN-CURSOR                 VALUE 'N'.
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+           EXEC SQL
+               INCLUDE TBPROVIN
+           END-EXEC.
+      *
+           EXEC SQL
+               DECLARE CRPROVIN CURSOR FOR
+                 SELECT PREFIJO
+                       ,PROVINCIA
+                   FROM PROVINCIAS
+           END-EXEC.
+      *
+      ******************************************************************
+      *   P R O C E D U R E     D I V I S I O N                        *
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT.
+      *
+      ******************************************************************
+      *   1000-INICIO                                                  *
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE SQLCA
+                      DCLPROVINCIAS
+                      FS-FILE-STATUS
+                      WK-VARIABLES
+      *
+           SET NO-FIN-CURSOR       TO TRUE
+      *
+           PERFORM 1100-ABRIR-SALIDA
+              THRU 1100-ABRIR-SALIDA-EXIT
+      *
+           PERFORM 1200-ABRIR-CURSOR
+              THRU 1200-ABRIR-CURSOR-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   1100-ABRIR-SALIDA                                            *
+      ******************************************************************
+      *
+       1100-ABRIR-SALIDA.
+      *
+           OPEN OUTPUT FSALIDA
+      *
+           IF FS-FSALIDA = CA-00
+              CONTINUE
+           ELSE
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+           .
+      *
+       1100-ABRIR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   1200-ABRIR-CURSOR                                            *
+      ******************************************************************
+      *
+       1200-ABRIR-CURSOR.
+      *
+           EXEC SQL
+                  OPEN CRPROVIN
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+              WHEN 0
+                   CONTINUE
+              WHEN OTHER
+                   PERFORM 3000-FIN
+                      THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       1200-ABRIR-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   2000-PROCESO                                                 *
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-LEER-CURSOR
+              THRU 2100-LEER-CURSOR-EXIT
+             UNTIL SI-FIN-CURSOR
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   2100-LEER-CURSOR                                             *
+      ******************************************************************
+      *
+       2100-LEER-CURSOR.
+      *
+           EXEC SQL
+
+              FETCH CRPROVIN
+                INTO
+                    :TB-PREFIJO
+                   ,:TB-PROVINCIA
+
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+              WHEN 0
+                   PERFORM 2200-GRABAR-SALIDA
+                      THRU 2200-GRABAR-SALIDA-EXIT
+
+              WHEN 100
+                   SET SI-FIN-CURSOR TO TRUE
+
+              WHEN OTHER
+                   PERFORM 3000-FIN
+                      THRU 3000-FIN-EXIT
+
+           END-EVALUATE
+      *
+           .
+      *
+       2100-LEER-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   2200-GRABAR-SALIDA                                           *
+      ******************************************************************
+      *
+       2200-GRABAR-SALIDA.
+      *
+           WRITE REG-SAL FROM DCLPROVINCIAS
+      *
+           IF FS-FSALIDA = CA-00
+              INITIALIZE DCLPROVINCIAS
+              ADD 1              TO WK-ESCRITOS-1
+           ELSE
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       2200-GRABAR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   3000-FIN                                                     *
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3150-CERRAR-CURSOR
+              THRU 3150-CERRAR-CURSOR-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   3100-CERRAR-FICHEROS                                         *
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FSALIDA
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR EN CIERRE DE FICHERO SALIDA'
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   3150-CERRAR-CURSOR                                           *
+      ******************************************************************
+      *
+       3150-CERRAR-CURSOR.
+      *
+           EXEC SQL
+                  CLOSE CRPROVIN
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+              WHEN 0
+                   CONTINUE
+              WHEN OTHER
+                   DISPLAY 'ERROR AL LIBERAR RECURSOS CURSOR'
+           END-EVALUATE
+      *
+           .
+      *
+       3150-CERRAR-CURSOR-EXIT.
+           EXIT.
+      *

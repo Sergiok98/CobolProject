@@ -1,0 +1,35 @@
+      ******************************************************************
+      ** C O P Y   R U T I N A   L I S T A R  |  R E P A G I N A R    **
+      **--------------------------------------------------------------**
+      ** LONGITUD:                                                    **
+      **--------------------------------------------------------------**
+      **                                                              **
+      ******************************************************************
+       01 CPYRPAG.
+          05 ENTRADA.
+             10 OPCION                      PIC X(01).
+             10 NUM-OCCURS-E                PIC 9(03).
+          05 REPAGINACION.
+             10 POBLACION-REP               PIC X(20).
+             10 TIPO-REP                    PIC X(20).
+             10 DIRECCION-REP               PIC X(30).
+             10 PLANTA-REP                  PIC S9(9) USAGE COMP.
+             10 PUERTA-REP                  PIC X(2).
+          05 SALIDA.
+             10 SALIDA-TB OCCURS 5.
+                15 POBLACION-RUT            PIC X(20).
+                15 TIPO-RUT                 PIC X(20).
+                15 DIRECCION-RUT            PIC X(30).
+                15 PLANTA-RUT               PIC S9(9) USAGE COMP.
+                15 PUERTA-RUT               PIC X(2).
+          05 SALIDA-CONTROL.
+             10 MAS-DATOS                   PIC X(01).
+             10 NUM-OCCURS-S                PIC 9(03).
+          05 ERRORES.
+             10 COD-RETORNO                 PIC X(02).
+             10 COD-SUBRETORNO              PIC X(02).
+             10 PARRAFO                     PIC X(30).
+             10 DESCRIPCION                 PIC X(50).
+             10 TABLA                       PIC X(30).
+             10 SQLCODE-RUT                 PIC S9(04).
+      *

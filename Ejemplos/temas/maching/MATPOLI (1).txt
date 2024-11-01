@@ -1,0 +1,512 @@
+      ******************************************************************
+      *   I D E N T I F I C A T I O N  D I V I S I O N                 *
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      *   PRIMER PROGRAMA COBOL DONDE APRENDEREMOS LA ESCTRUCTURA      *
+      *   BASICA DE UN PROGRAMA COBOL.                                 *
+      ******************************************************************
+      *
+       PROGRAM-ID. MATPOLI.
+       AUTHOR. JOSE CARLOS.
+       INSTALLATION. EOI.
+       DATE-WRITTEN. 19/05/2023.
+       DATE-COMPILED. 19/05/2023.
+      *
+      ******************************************************************
+      *                                                                *
+      *   E N V I R O N M E N T     D I V I S I O N                    *
+      *   ---------------------     ---------------                    *
+      *                                                                *
+      * DEFINIR FICHEROS QUE VAN A SER USADOS DURANTE EL PROGRAMA      *
+      * RELACIONAR NOMBRES LOGICOS DE LOS ARCHIVOS POR EL PROGRAMA     *
+      * CON LOS NOMBRES REALES DEL JCL                                 *
+      * DOS SECIONES:                                                  *
+      *    - CONFIGURATION SECTION                                     *
+      *      SE DECLARA EL NOMBRE DE LOS PROCESADORES DONDE SE COMPILA *
+      *      Y EJECUTA EL PROGRAMA (NO ES OBLIGATORIO)                 *
+      *    - INPUT-OUTPUT SECTION                                      *
+      *      SE DECLARAN DISPOSITIVOS PERIFERICOS (IMPRESORAS..)       *
+      *      TIENE FILE CONTROL QUE ES OBLIGATORIO CUANDO SE USAN      *
+      *      FICHEROS EN EL PROGRAMA, YA QUE LOS DESCRIBE.             *
+      *                                                                *
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * A PARTIR DE AQUI SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      *
+           SELECT FENTRAD1
+               ASSIGN TO CLIENTES
+               FILE STATUS IS FS-FENTRAD1.
+      *
+           SELECT FENTRAD2
+               ASSIGN TO POLIZAS
+               FILE STATUS IS FS-FENTRAD2.
+      *
+           SELECT FSALIDA
+               ASSIGN TO SALIDA
+               FILE STATUS IS FS-FSALIDA.
+      *
+      ******************************************************************
+      *                                                                *
+      *   D A T A     D I V I S I O N                                  *
+      *   ---------------------------                                  *
+      *                                                                *
+      * IDENTIFICA TODOS LOS NOMBRES DE DATOS UTILIZADOS EN EL PROGRAMA*
+      * SECCIONES:                                                     *
+      *     - FILE SECTION.                                            *
+      *       DESCRIBE FICHEROS DE ENTRADA Y SALIDA QUE SE USAN EN EL  *
+      *       PROGRAMA.                                                *
+      *     - WORKING STORAGE SECTION.                                 *
+      *       DEFINIR LOS CAMPOS DE TRABAJO NECESARIOS.                *
+      *     - LINKAGE SECTION.                                         *
+      *       SE USARA CUANDO EL PROGRAMA SEA UNA RUTINA, YA QUE ES    *
+      *       LA ZONA QUE SIRVE PARA COMUNICARSE CON EL PROGRAMA QUE   *
+      *       LA INVOCA.                                               *
+      *                                                                *
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *   F I L E    S E C T I O N                                     *
+      ******************************************************************
+      *
+       FD FENTRAD1
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-ENT1.
+      *
+       01 REG-ENT1          PIC X(150).
+      *
+       FD FENTRAD2
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-ENT2.
+      *
+       01 REG-ENT2          PIC X(75).
+      *
+       FD FSALIDA
+            BLOCK CONTAINS 0 RECORDS
+            LABEL RECORD ARE STANDARD
+            RECORDING MODE IS F
+            DATA RECORD IS REG-SAL.
+      *
+       01 REG-SAL           PIC X(158).
+      *
+      ******************************************************************
+      *   W O R K I N G   S T O R A G E                                *
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      * LUGAR DONDE DECLARAREMOS CONSTANTES, VARIABLES, COPYS, SWITCHES.
+      * CONSTANTES ALFANUMERICAS
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                 PIC X(07) VALUE 'MATPOLI'.
+          05 CA-00                  PIC X(02) VALUE '00'.
+          05 CA-10                  PIC X(02) VALUE '10'.
+          05 CA-SI                  PIC X(02) VALUE 'SI'.
+          05 CA-NO                  PIC X(02) VALUE 'NO'.
+      *
+       01 CN-CONSTANTES-NUM.
+          05 CN-1                   PIC 9(01) VALUE 1.
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FENTRAD1            PIC X(02).
+          05 FS-FENTRAD2            PIC X(02).
+          05 FS-FSALIDA             PIC X(02).
+      *
+       01 WK-VARIABLES.
+          05 WK-LEIDOS-1            PIC 9(03).
+          05 WK-LEIDOS-2            PIC 9(03).
+          05 WK-ESCRITOS-1          PIC 9(03).
+      *
+       01 WK-CLAVE1.
+          05 CODCLI1                PIC X(02).
+          05 NIF1                   PIC X(09).
+      *
+       01 WK-CLAVE2.
+          05 CODCLI2                PIC X(02).
+          05 NIF2                   PIC X(09).
+      *
+       01 SW-FIN-FICHERO1           PIC X(01).
+          88 SI-FIN-FICHERO1        VALUE 'S'.
+          88 NO-FIN-FICHERO1        VALUE 'N'.
+      *
+       01 SW-FIN-FICHERO2           PIC X(01).
+          88 SI-FIN-FICHERO2        VALUE 'S'.
+          88 NO-FIN-FICHERO2        VALUE 'N'.
+      *
+       COPY CPYCLI.
+       COPY CPYPOLI.
+       COPY CPYRESU.
+      *
+      ******************************************************************
+      *   P R O C E D U R E     D I V I S I O N                        *
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SI-FIN-FICHERO1 AND SI-FIN-FICHERO2
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT.
+      *
+      ******************************************************************
+      *   1000-INICIO                                                  *
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE WK-VARIABLES
+                      WK-CLAVE1
+                      WK-CLAVE2
+                      CPY-CLIENTE
+                      CPY-POLIZA
+                      CPY-RESUMEN
+      *
+           SET NO-FIN-FICHERO1   TO TRUE
+           SET NO-FIN-FICHERO2   TO TRUE
+      *
+           PERFORM 1050-ABRIR-CLIENTES
+              THRU 1050-ABRIR-CLIENTES-EXIT
+      *
+           PERFORM 1100-ABRIR-POLIZAS
+              THRU 1100-ABRIR-POLIZAS-EXIT
+      *
+           PERFORM 1150-ABRIR-SALIDA
+              THRU 1150-ABRIR-SALIDA-EXIT
+      *
+           PERFORM 9000-LEER-CLIENTE
+              THRU 9000-LEER-CLIENTE-EXIT
+      *
+           PERFORM 9100-LEER-POLIZA
+              THRU 9100-LEER-POLIZA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   1050-ABRIR-CLIENTES                                          *
+      ******************************************************************
+      *
+       1050-ABRIR-CLIENTES.
+      *
+           OPEN INPUT FENTRAD1
+      *
+           IF FS-FENTRAD1 = CA-00
+              CONTINUE
+           ELSE
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1050-ABRIR-CLIENTES-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   1100-ABRIR-POLIZAS                                           *
+      ******************************************************************
+      *
+       1100-ABRIR-POLIZAS.
+      *
+           OPEN INPUT FENTRAD2
+      *
+           IF FS-FENTRAD2 = CA-00
+              CONTINUE
+           ELSE
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-POLIZAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   1150-ABRIR-SALIDA                                            *
+      ******************************************************************
+      *
+       1150-ABRIR-SALIDA.
+      *
+           OPEN OUTPUT FSALIDA
+      *
+           IF FS-FSALIDA = CA-00
+              CONTINUE
+           ELSE
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1150-ABRIR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   9000-LEER-CLIENTE                                            *
+      ******************************************************************
+      *
+       9000-LEER-CLIENTE.
+      *
+           INITIALIZE CPY-CLIENTE
+      *
+           READ FENTRAD1 INTO CPY-CLIENTE
+             AT END
+                 SET SI-FIN-FICHERO1    TO TRUE
+                 MOVE HIGH-VALUES       TO WK-CLAVE1
+           END-READ
+      *
+           IF FS-FENTRAD1 = CA-00
+              MOVE COD-CLIENTE          TO CODCLI1
+              MOVE NIF                  TO NIF1
+              ADD 1         TO WK-LEIDOS-1
+           ELSE
+              IF FS-FENTRAD1 NOT = CA-10
+                 PERFORM 3000-FIN
+                    THRU 3000-FIN-EXIT
+              END-IF
+           END-IF
+      *
+           .
+      *
+       9000-LEER-CLIENTE-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   9100-LEER-POLIZA                                             *
+      ******************************************************************
+      *
+       9100-LEER-POLIZA.
+      *
+           INITIALIZE CPY-POLIZA
+      *
+           READ FENTRAD2 INTO CPY-POLIZA
+             AT END
+                 SET SI-FIN-FICHERO2    TO TRUE
+                 MOVE HIGH-VALUES       TO WK-CLAVE2
+           END-READ
+      *
+           IF FS-FENTRAD2 = CA-00
+              MOVE COD-CLIENTE-P        TO CODCLI2
+              MOVE NIF-P                TO NIF2
+              ADD 1         TO WK-LEIDOS-2
+           ELSE
+              IF FS-FENTRAD2 NOT = CA-10
+                 PERFORM 3000-FIN
+                    THRU 3000-FIN-EXIT
+              END-IF
+           END-IF
+      *
+           .
+      *
+       9100-LEER-POLIZA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   2000-PROCESO                                                 *
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           IF WK-CLAVE1 = WK-CLAVE2
+
+              PERFORM 2500-INFORMAR-SALIDA
+                 THRU 2500-INFORMAR-SALIDA-EXIT
+
+              PERFORM 9100-LEER-POLIZA
+                 THRU 9100-LEER-POLIZA-EXIT
+
+           ELSE
+
+              IF WK-CLAVE1 < WK-CLAVE2
+
+                 PERFORM 2500-INFORMAR-SALIDA
+                    THRU 2500-INFORMAR-SALIDA-EXIT
+
+                 PERFORM 2400-INFORMAR-NO
+                    THRU 2400-INFORMAR-NO-EXIT
+
+                 PERFORM 2600-ESCRIBIR-SALIDA
+                    THRU 2600-ESCRIBIR-SALIDA-EXIT
+
+                 PERFORM 9000-LEER-CLIENTE
+                    THRU 9000-LEER-CLIENTE-EXIT
+
+              ELSE
+
+                 PERFORM 9100-LEER-POLIZA
+                    THRU 9100-LEER-POLIZA-EXIT
+
+              END-IF
+
+           END-IF
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   2400-INFORMAR-NO                                             *
+      ******************************************************************
+      *
+       2400-INFORMAR-NO.
+      *
+           IF AUTO EQUAL SPACES
+              MOVE CA-NO                TO AUTO
+           END-IF
+      *
+           IF VIDA EQUAL SPACES
+              MOVE CA-NO                TO VIDA
+           END-IF
+      *
+           IF SALUD EQUAL SPACES
+              MOVE CA-NO                TO SALUD
+           END-IF
+      *
+           IF HOGAR EQUAL SPACES
+              MOVE CA-NO                TO HOGAR
+           END-IF
+      *
+           .
+      *
+       2400-INFORMAR-NO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   2500-INFORMAR-SALIDA                                         *
+      ******************************************************************
+      *
+       2500-INFORMAR-SALIDA.
+      *
+           MOVE CPY-CLIENTE  TO CPY-RESUMEN(1:150)
+      *
+           EVALUATE TIPO-SEGURO
+               WHEN 'AUTO'
+                    MOVE CA-SI    TO AUTO
+               WHEN 'VIDA'
+                    MOVE CA-SI    TO VIDA
+               WHEN 'SALUD'
+                    MOVE CA-SI    TO SALUD
+               WHEN 'HOGAR'
+                    MOVE CA-SI    TO HOGAR
+           END-EVALUATE
+      *
+           .
+      *
+       2500-INFORMAR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   2600-ESCRIBIR-SALIDA                                         *
+      ******************************************************************
+      *
+       2600-ESCRIBIR-SALIDA.
+      *
+           WRITE REG-SAL  FROM CPY-RESUMEN
+      *
+           IF FS-FSALIDA = CA-00
+              INITIALIZE CPY-RESUMEN
+              ADD 1                 TO WK-ESCRITOS-1
+           ELSE
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       2600-ESCRIBIR-SALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   3000-FIN                                                     *
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-GRABAR-ESTADIS
+              THRU 3200-GRABAR-ESTADIS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   3100-CERRAR-FICHEROS                                         *
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRAD1
+                 FENTRAD2
+                 FSALIDA
+      *
+           IF FS-FENTRAD1 NOT = CA-00
+              DISPLAY 'ERROR EN FICHERO DE CLIENTES'
+           END-IF
+
+           IF FS-FENTRAD2 NOT = CA-00
+              DISPLAY 'ERROR EN FICHERO DE POLIZAS'
+           END-IF
+
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR EN FICHERO DE SALIDA'
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      *   3200-GRABAR-ESTADIS                                          *
+      ******************************************************************
+      *
+       3200-GRABAR-ESTADIS.
+      *
+           DISPLAY '************************************'
+           DISPLAY '**  ESTADISTICAS DE PROGRAMA      **'
+           DISPLAY '** REGISTROS LEIDOS F1:           **' WK-LEIDOS-1
+           DISPLAY '** REGISTROS LEIDOS F2:           **' WK-LEIDOS-2
+           DISPLAY '** REGISTROS ESCRITOS EN SALIDA:  **' WK-ESCRITOS-1
+           DISPLAY '************************************'
+      *
+           .
+      *
+       3200-GRABAR-ESTADIS-EXIT.
+           EXIT.
+      *

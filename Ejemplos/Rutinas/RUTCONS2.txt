@@ -1,0 +1,234 @@
+      ******************************************************************
+      ** R U T C O N S 2.-RUTINA QUE RECIBE EL VALOR DEL ASEGURADO Y  **
+      **                  TIPO DE SEGURO Y CALCULA LA PRIMA ANUAL     **
+      ******************************************************************
+      *
+      ******************************************************************
+      ** IDENTIFICATION DIVISION                                      **
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. RUTCONS2.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 04/09/2024.
+      *
+      ******************************************************************
+      ** ENVIRONMENT DIVISION                                         **
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *
+      ******************************************************************
+      ** DATA DIVISION                                                **
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES.
+          05 CA-RUTINA                    PIC X(08) VALUE 'RUTCONS2'.
+          05 CA-RESIDENCIAL               PIC X(11) VALUE 'RESIDENCIAL'.
+          05 CA-COMERCIAL                 PIC X(9) VALUE 'COMERCIAL'.
+          05 CA-INDUSTRIAL                PIC X(10) VALUE 'INDUSTRIAL'.
+          05 CA-00                        PIC X(2) VALUE '00'.
+          05 CA-99                        PIC X(2) VALUE '99'.
+      *
+       01 WK-VARIABLES.
+          05 WK-ACUMULADOR                PIC 9(8)V99.
+      *
+       LINKAGE SECTION.
+      *
+      *COPY DE LA RUTINA RUTOPERA
+      *
+       COPY CPYRCONS.
+      ******************************************************************
+      ** PROCEDURE DIVISION                                           **
+      ******************************************************************
+      *
+       PROCEDURE DIVISION USING RUTINA-PARAM-AREA.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      ** 1000-INICIO                                                  **
+      ** INICIALIZAR VARIABLES                                        **
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE SALIDA-RUTINA
+                      ERRORES-RUTINA
+      *
+           MOVE CA-00                    TO COD-RETORNO
+      *
+           IF RUTINA-TIPO-CLIENTE = SPACES OR LOW-VALUES
+              MOVE CA-99                 TO COD-RETORNO
+              MOVE CA-00                 TO COD-SUBRETORNO
+              MOVE '1000-INICIO'         TO PARRAFO-RUT
+              MOVE CA-RUTINA             TO NOMBRE-RUT
+              MOVE 'EL TIPO DE CLIENTE SIN INFORMAR'
+                                         TO DESCRIPCION-RUT
+              MOVE 'RUTINA-TIPO-CLIENTE'
+                                         TO ELEMENTO-RUT
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF RUTINA-TIPO-CLIENTE NOT EQUAL CA-RESIDENCIAL AND
+              RUTINA-TIPO-CLIENTE NOT EQUAL CA-COMERCIAL AND
+              RUTINA-TIPO-CLIENTE NOT EQUAL CA-INDUSTRIAL
+      *
+              MOVE CA-99                 TO COD-RETORNO
+              MOVE CA-00                 TO COD-SUBRETORNO
+              MOVE RUTINA-TIPO-CLIENTE   TO PARRAFO-RUT
+              MOVE '1000-INICIO'         TO PARRAFO-RUT
+              MOVE CA-RUTINA             TO NOMBRE-RUT
+              MOVE 'EL TIPO DE CLIENTE NO EXISTE'
+                                         TO DESCRIPCION-RUT
+              MOVE 'RUTINA-TIPO-CLIENTE'
+                                         TO ELEMENTO-RUT
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF RUTINA-CONSUMO-KWH = ZEROES
+              MOVE CA-99                 TO COD-RETORNO
+              MOVE CA-00                 TO COD-SUBRETORNO
+              MOVE '1000-INICIO'         TO PARRAFO-RUT
+              MOVE CA-RUTINA             TO NOMBRE-RUT
+              MOVE 'CAMPO CONSUMO SIN INFORMAR'
+                                         TO DESCRIPCION-RUT
+              MOVE 'RUTINA-CONSUMO-KWH'
+                                         TO ELEMENTO-RUT
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      *
+      ******************************************************************
+      ** 2000-PROCESO                                                 **
+      ** CALCULAR LA PRIMA ANUAL EN FUNCION DEL TIPO DE SEGURO        **
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           EVALUATE RUTINA-TIPO-CLIENTE
+                 WHEN CA-RESIDENCIAL
+                   EVALUATE TRUE
+                     WHEN RUTINA-CONSUMO-KWH <= 500
+                        COMPUTE RUTINA-IMPORTE-BRUTO =
+                                RUTINA-CONSUMO-KWH * 0,12
+      *
+                     WHEN RUTINA-CONSUMO-KWH > 500 AND
+                          RUTINA-CONSUMO-KWH <= 1000
+                        COMPUTE RUTINA-IMPORTE-BRUTO = (500 * 0,12)+
+                                ((RUTINA-CONSUMO-KWH - 500) * 0,15)
+      *
+                     WHEN RUTINA-CONSUMO-KWH > 1000
+                        COMPUTE WK-ACUMULADOR = (500 * 0,12)+
+                                (500 * 0,15)
+                        COMPUTE RUTINA-IMPORTE-BRUTO =
+                                ((RUTINA-CONSUMO-KWH - 1000) * 0,20)
+                                + WK-ACUMULADOR
+      *
+                          IF RUTINA-CONSUMO-KWH > 2000
+                             MOVE 5 TO RUTINA-DESCUENTO
+                          END-IF
+                   END-EVALUATE
+      *
+                 WHEN CA-COMERCIAL
+                   EVALUATE TRUE
+                     WHEN RUTINA-CONSUMO-KWH <= 1000
+                        COMPUTE RUTINA-IMPORTE-BRUTO =
+                                RUTINA-CONSUMO-KWH * 0,18
+      *
+                     WHEN RUTINA-CONSUMO-KWH > 1000 AND
+                          RUTINA-CONSUMO-KWH <= 5000
+                        COMPUTE RUTINA-IMPORTE-BRUTO = (1000 * 0,18)+
+                                ((RUTINA-CONSUMO-KWH - 4000) * 0,22)
+      *
+                     WHEN RUTINA-CONSUMO-KWH > 5000
+                        COMPUTE WK-ACUMULADOR = (1000 * 0,18)+
+                                (4000 * 0,22)
+                        COMPUTE RUTINA-IMPORTE-BRUTO =
+                                ((RUTINA-CONSUMO-KWH - 5000) * 0,25)
+                                + WK-ACUMULADOR
+      *
+                          IF RUTINA-CONSUMO-KWH > 10000
+                             MOVE 10 TO RUTINA-DESCUENTO
+                          END-IF
+      *
+                   END-EVALUATE
+      *
+                 WHEN CA-INDUSTRIAL
+                   EVALUATE TRUE
+                     WHEN RUTINA-CONSUMO-KWH <= 10000
+                        COMPUTE RUTINA-IMPORTE-BRUTO =
+                                RUTINA-CONSUMO-KWH * 0,10
+      *
+                     WHEN RUTINA-CONSUMO-KWH > 10000 AND
+                          RUTINA-CONSUMO-KWH <= 50000
+                        COMPUTE RUTINA-IMPORTE-BRUTO = (10000 * 0,10)+
+                                ((RUTINA-CONSUMO-KWH - 40000) * 0,12)
+      *
+                     WHEN RUTINA-CONSUMO-KWH > 50000
+                        COMPUTE WK-ACUMULADOR = (10000 * 0,10)+
+                                (40000 * 0,12)
+                        COMPUTE RUTINA-IMPORTE-BRUTO =
+                                ((RUTINA-CONSUMO-KWH - 50000) * 0,15)
+                                + WK-ACUMULADOR
+      *
+                          IF RUTINA-CONSUMO-KWH > 70000
+                             MOVE 15 TO RUTINA-DESCUENTO
+                          END-IF
+      *
+                   END-EVALUATE
+           END-EVALUATE
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      *
+      ******************************************************************
+      ** 3000-FIN                                                     **
+      ** FINALIZAMOS EL PGM.                                          **
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           GOBACK
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *

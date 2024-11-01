@@ -1,0 +1,386 @@
+      ******************************************************************
+      **      I D E N T I F I C A T I O N   D I V I S I O N           **
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+      *----------------------------------------------------------------*
+       PROGRAM-ID. REPMUN.
+       AUTHOR. JCAR.
+      ******************************************************************
+      **      E N V I R O N M E N T   D I V I S I O N                 **
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *----------------------------------------------------------------*
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *--------------------- FICHEROS DE ENTRADA ----------------------*
+           SELECT FENTRADA
+           ASSIGN TO FENTRADA
+           FILE STATUS IS FS-FENTRADA.
+      ******************************************************************
+      **      D A T A   D I V I S I O N                               **
+      ******************************************************************
+       DATA DIVISION.
+      *----------------------------------------------------------------*
+       FILE SECTION.
+       FD FENTRADA RECORDING MODE F.
+       01 REG-FENTRADA            PIC X(144).
+      *----------------------------------------------------------------*
+       WORKING-STORAGE SECTION.
+      *--------------------- CONSTANTES ALFANUMERICAS -----------------*
+       01 CA-CONSTANTES-ALFANUMERICAS.
+          05 CA-00                PIC X(02)         VALUE '00'.
+          05 CA-10                PIC X(02)         VALUE '10'.
+          05 CA-REPMUN            PIC X(06)         VALUE 'REPMUN'.
+          05 CA-KO                PIC X(02)         VALUE 'KO'.
+          05 CA-OK                PIC X(02)         VALUE 'OK'.
+      *--------------------- CONSTANTES NUMERICAS ---------------------*
+       01 CN-CONSTANTES-NUMERICAS.
+          05 CN-100               PIC 9(03)         VALUE 100.
+      *--------------------- FILE STATUS ------------------------------*
+       01 FS-FILE-STATUS.
+          05 FS-FENTRADA          PIC X(02).
+      *--------------------- SWITCHES ---------------------------------*
+       01 SW-FIN-FENTRADA         PIC X(01).
+          88 SI-FIN-FENTRADA      VALUE 'S'.
+          88 NO-FIN-FENTRADA      VALUE 'N'.
+      *--------------------- CONTADORES -------------------------------*
+       01 CNT-CONTADORES.
+          05 CNT-REG-FENTRADA     PIC 9(09).
+          05 CNT-REG-INSERT       PIC 9(09).
+          05 CNT-REG-UPDATE       PIC 9(09).
+      *--------------------- VARIABLES --------------------------------*
+       01 WK-VARIABLES.
+          05 WK-CLAVE-ENT.
+             10 NUM-CUENTA-CLAVE  PIC X(20).
+             10 ID-CLIENTE-CLAVE  PIC X(10).
+      *--------------------- DECLARACIONES SQL ------------------------*
+       EXEC SQL INCLUDE SQLCA END-EXEC.
+       EXEC SQL INCLUDE TBPICH END-EXEC.
+       EXEC SQL INCLUDE TBDAREPO END-EXEC.
+      ******************************************************************
+      **      P R O C E D U R E   D I V I S I O N                     **
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *----------------------------------------------------------------*
+           PERFORM INICIO
+              THRU INICIO-EXIT
+      *
+           PERFORM PROCESO
+              THRU PROCESO-EXIT
+             UNTIL SI-FIN-FENTRADA
+      *
+           PERFORM FIN
+              THRU FIN-EXIT
+           .
+      *--------------------- INICIO -----------------------------------*
+       INICIO.
+           INITIALIZE CNT-CONTADORES
+                      FS-FILE-STATUS
+                      DCLDAREPOS
+                      DCLBANCO-PICHINCHA
+      *
+           SET NO-FIN-FENTRADA TO TRUE
+      *
+           PERFORM ABRIR-FICHEROS
+              THRU ABRIR-FICHEROS-EXIT
+      *
+           MOVE CA-REPMUN    TO TB-NOMBRE-PGM
+      *
+           PERFORM CONSULTAR-DAREPOS
+              THRU CONSULTAR-DAREPOS-EXIT
+           .
+      *
+       INICIO-EXIT.
+           EXIT.
+      *--------------------- ABRIR-FICHEROS ---------------------------*
+       ABRIR-FICHEROS.
+           OPEN INPUT FENTRADA
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR EN LA APERTURA DEL FICHERO DE FENTRADA'
+              DISPLAY 'NOMBRE DEL FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+              PERFORM FIN
+                 THRU FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *--------------------- CONSULTAR DAREPOS -------------------------*
+       CONSULTAR-DAREPOS.
+      *
+           EXEC SQL
+              SELECT ESTADO
+                    ,VALOR_CLAVE
+                 INTO
+                    :TB-ESTADO
+                   ,:TB-VALOR-CLAVE-TEXT
+                 FROM DAREPOS
+              WHERE NOMBRE_PGM = :TB-NOMBRE-PGM
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+      *
+              WHEN 0
+      *
+                 EVALUATE TB-ESTADO
+                    WHEN CA-KO
+                       DISPLAY 'VOY A LEER ENTRADA'
+                       PERFORM LEER-ENTRADA
+                          THRU LEER-ENTRADA-EXIT
+                         UNTIL WK-CLAVE-ENT > TB-VALOR-CLAVE-TEXT
+      *
+                    WHEN CA-OK
+                       PERFORM LEER-ENTRADA
+                          THRU LEER-ENTRADA-EXIT
+      *
+                    WHEN OTHER
+                       DISPLAY 'ERROR: CAMPO TB-ESTADO NO VALIDO'
+                       PERFORM FIN
+                          THRU FIN-EXIT
+                 END-EVALUATE
+      *
+              WHEN 100
+      *
+                 PERFORM INSERTAR-DAREPOS
+                    THRU INSERTAR-DAREPOS-EXIT
+                 PERFORM LEER-ENTRADA
+                    THRU LEER-ENTRADA-EXIT
+      *
+              WHEN OTHER
+      *
+                 DISPLAY 'ERROR SELECT DE DAREPOS'
+                 DISPLAY 'SQLCODE: ' SQLCODE
+                 DISPLAY 'PARRAFO: CONSULTAR-DAREPOS'
+                 DISPLAY 'TABLA: DAREPOS'
+                 PERFORM FIN
+                    THRU FIN-EXIT
+           END-EVALUATE
+           .
+       CONSULTAR-DAREPOS-EXIT.
+           EXIT
+           .
+      *--------------------- INSERTAR DAREPOS --------------------------*
+       INSERTAR-DAREPOS.
+           MOVE CA-KO    TO TB-ESTADO
+           INITIALIZE TB-VALOR-CLAVE-TEXT
+      *
+           EXEC SQL
+              INSERT INTO DAREPOS VALUES (:TB-NOMBRE-PGM,
+                                          :TB-ESTADO,
+                                          :TB-VALOR-CLAVE-TEXT)
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+              WHEN 0
+                 CONTINUE
+              WHEN -803
+                 DISPLAY 'ERROR AL INSERTAR EN DAREPOS POR REG DUPLI'
+                 DISPLAY 'RETORNO: 99'
+                 DISPLAY 'SQLCODE: ' SQLCODE
+                 DISPLAY 'PARRAFO: INSERTAR-DAREPOS'
+                 DISPLAY 'TABLA  : DAREPOS'
+                 DISPLAY 'ERROR: NO ES PUSIBLA'
+                 PERFORM FIN
+                    THRU FIN-EXIT
+              WHEN OTHER
+                 DISPLAY 'ERROR AL INSERTAR EN DAREPOS0'
+                 DISPLAY 'RETORNO: 99'
+                 DISPLAY 'SQLCODE: ' SQLCODE
+                 DISPLAY 'PARRAFO: INSERTAR-DAREPOS'
+                 DISPLAY 'TABLA  : DAREPOS'
+                 PERFORM FIN
+                    THRU FIN-EXIT
+           END-EVALUATE
+           .
+       INSERTAR-DAREPOS-EXIT.
+           EXIT
+           .
+      *--------------------- LEER ENTRADA ------------------------------*
+       LEER-ENTRADA.
+           READ FENTRADA INTO DCLBANCO-PICHINCHA
+      *
+           EVALUATE FS-FENTRADA
+      *
+             WHEN CA-00
+                ADD 1 TO CNT-REG-FENTRADA
+                MOVE TB-NUM-CUENTA TO NUM-CUENTA-CLAVE
+                MOVE TB-ID-CLIENTE TO ID-CLIENTE-CLAVE
+      *
+             WHEN CA-10
+                DISPLAY 'HE LEIDO Y SE HA ACABADO'
+                SET SI-FIN-FENTRADA TO TRUE
+                PERFORM DAREPOS-OK
+                   THRU DAREPOS-OK-EXIT
+      *
+             WHEN OTHER
+                DISPLAY 'HE LEIDO Y ALGO HA IDO MUY MUY MAL'
+                DISPLAY 'ERROR AL LEER FICHERO DE FENTRADA'
+                DISPLAY 'NOMBRE DEL FICHERO: FENTRADA'
+                DISPLAY 'FILE STATUS: ' FS-FENTRADA
+                PERFORM FIN
+                   THRU FIN-EXIT
+      *
+           END-EVALUATE
+           .
+      *
+       LEER-ENTRADA-EXIT.
+           EXIT
+           .
+      *--------------------- PROCESO ----------------------------------*
+       PROCESO.
+           PERFORM INSERT-BAPICH
+              THRU INSERT-BAPICH-EXIT
+      *
+           PERFORM UPDATE-DAREPOS
+              THRU UPDATE-DAREPOS-EXIT
+      *
+           PERFORM LEER-ENTRADA
+              THRU LEER-ENTRADA-EXIT
+           .
+       PROCESO-EXIT.
+           EXIT
+           .
+      *--------------------- INSERT BAPICH ----------------------------*
+       INSERT-BAPICH.
+
+           EXEC SQL
+              INSERT INTO BANCO_PICHINCHA
+                VALUES (
+                    :TB-NUM-CUENTA
+                   ,:TB-ID-CLIENTE
+                   ,:TB-NOMBRE
+                   ,:TB-APELLIDO1
+                   ,:TB-APELLIDO2
+                   ,:TB-IMPORTE
+                   ,:TB-DIVISA
+                   ,:TB-CIUDAD
+                   ,:TB-PAIS
+                   ,:TB-EDAD
+                 )
+           END-EXEC.
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                  ADD 1 TO CNT-REG-INSERT
+               WHEN OTHER
+                  DISPLAY 'ERROR AL INSERTAR EN BANCO_PICHINCHA'
+                  DISPLAY 'RETORNO: 99'
+                  DISPLAY 'SQLCODE: ' SQLCODE
+                  DISPLAY 'PARRAFO: INSERT-BAPICH'
+                  DISPLAY 'TABLA  : BANCO_PICHINCHA'
+                  PERFORM FIN
+                     THRU FIN-EXIT
+           END-EVALUATE
+           .
+       INSERT-BAPICH-EXIT.
+           EXIT
+           .
+      *--------------------- UPDATE DAREPOS ---------------------------*
+       UPDATE-DAREPOS.
+           MOVE WK-CLAVE-ENT TO TB-VALOR-CLAVE-TEXT
+           MOVE CA-REPMUN TO TB-NOMBRE-PGM
+      *
+           EXEC SQL
+              UPDATE DAREPOS
+                 SET VALOR_CLAVE = :TB-VALOR-CLAVE-TEXT
+               WHERE NOMBRE_PGM  = :TB-NOMBRE-PGM
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+              WHEN 0
+                 CONTINUE
+              WHEN OTHER
+                 DISPLAY 'ERROR EN EL UPDATE DE DAREPOS'
+                 DISPLAY 'PARRAFO: UPDATE-DAREPOS'
+                 DISPLAY 'TABLA: DAREPOS'
+                 DISPLAY 'SQLCODE: ' SQLCODE
+                 PERFORM FIN
+                    THRU FIN-EXIT
+           END-EVALUATE
+      *
+           EXEC SQL
+              COMMIT
+           END-EXEC
+           .
+       UPDATE-DAREPOS-EXIT.
+           EXIT
+           .
+      *--------------------- FIN --------------------------------------*
+       FIN.
+           PERFORM CERRAR-FICHEROS
+              THRU CERRAR-FICHEROS-EXIT
+           PERFORM MOSTRAR-ESTADISTICAS
+              THRU MOSTRAR-ESTADISTICAS-EXIT
+           STOP RUN
+           .
+      *
+       FIN-EXIT.
+           EXIT
+           .
+      *--------------------- DAREPOS OK -------------------------------*
+       DAREPOS-OK.
+           MOVE CA-OK TO TB-ESTADO
+           INITIALIZE TB-VALOR-CLAVE-TEXT
+      *
+           EXEC SQL
+              UPDATE DAREPOS
+                 SET ESTADO      = :TB-ESTADO
+                    ,VALOR_CLAVE = :TB-VALOR-CLAVE-TEXT
+               WHERE NOMBRE_PGM  = :TB-NOMBRE-PGM
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+              WHEN 0
+                 ADD 1 TO CNT-REG-UPDATE
+              WHEN OTHER
+                 DISPLAY 'ERROR AL PONER OK EN DAREPOS'
+                 DISPLAY 'PARRAFO: DAREPOS-OK'
+                 DISPLAY 'TABLA: DAREPOS'
+                 DISPLAY 'SQLCODE: ' SQLCODE
+                 PERFORM FIN
+                    THRU FIN-EXIT
+           END-EVALUATE
+
+           .
+      *
+       DAREPOS-OK-EXIT.
+           EXIT
+           .
+      *--------------------- CERRAR-FICHEROS --------------------------*
+       CERRAR-FICHEROS.
+           CLOSE FENTRADA
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR EL FICHERO DE FENTRADA'
+              DISPLAY 'NOMBRE DEL FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+           END-IF
+           .
+      *
+       CERRAR-FICHEROS-EXIT.
+           EXIT
+           .
+      *--------------------- MOSTRAR-ESTADISTICAS ---------------------*
+       MOSTRAR-ESTADISTICAS.
+           DISPLAY '**********************************************'
+           DISPLAY '* E S T A D I S T I C A S                    *'
+           DISPLAY '*--------------------------------------------*'
+           DISPLAY '* REGISTROS LEIDOS   DE FENTRADA : '
+                                              CNT-REG-FENTRADA ' *'
+           DISPLAY '* REGISTROS INSERTADOS EN CUENTAS: '
+                                              CNT-REG-INSERT   ' *'
+           DISPLAY '* REGISTROS UPDATEADOS EN DAREPOS: '
+                                              CNT-REG-UPDATE   ' *'
+           DISPLAY '**********************************************'
+           .
+      *
+       MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT
+           .
+      *

@@ -1,0 +1,486 @@
+      ******************************************************************
+      *    I D E N T I F I C A T I O N   D I V I S I O N               *
+      ******************************************************************
+      * PGM QUE USA UN CURSOR PARA LEER LOS DATOS DE UNA TABLA Y
+      * ESCRIBIR EN UN FICHERO DE SALIDA LOS DATOS QUE DEVUELVE EL
+      * CURSOR
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      *
+       PROGRAM-ID. EJRUTC01.
+       AUTHOR. SERGIO.
+       DATE-WRITTEN. 18/09/2024.
+      *
+      ******************************************************************
+      *    E N V I R O N M E N T       D I V I S I O N                 *
+      ******************************************************************
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+      * SE DECLARAN LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+       FILE-CONTROL.
+      * OBLIGATORIO, PARA DECLARAR LOS FICHEROS DE ENTRADA Y SALIDA
+      *
+           SELECT FENTRADA
+               ASSIGN TO FENTRADA
+               FILE STATUS IS FS-FENTRADA.
+      *
+           SELECT FSALIDA
+               ASSIGN TO FSALIDA
+               FILE STATUS IS FS-FSALIDA.
+      *
+      ******************************************************************
+      *    D A T A   D I V I S I O N                                   *
+      ******************************************************************
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *    F I L E   S E C T I O N                                     *
+      ******************************************************************
+      *
+       FD FENTRADA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FENTRADA.
+
+       01  REG-FENTRADA            PIC X(68).
+      *
+       FD FSALIDA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FSALIDA.
+
+       01  REG-FSALIDA             PIC X(113).
+      *
+      ******************************************************************
+      *    W O R K I N G    S T O R A G E                              *
+      ******************************************************************
+       WORKING-STORAGE SECTION.
+      *
+       01 CA-CONSTANTES-ALF.
+          05 CA-PGM                     PIC X(08) VALUE 'EJRUTC01'.
+          05 CA-RUTINA                  PIC X(06) VALUE 'RUTEJ1'.
+          05 CA-00                      PIC X(02) VALUE '00'.
+          05 CA-10                      PIC X(02) VALUE '10'.
+          05 CA-TLF                     PIC X(03) VALUE 'TLF'.
+      *
+       01 CN-CONTADORES.
+          05 CN-REG-CURSOR              PIC 9(03).
+          05 CN-REG-RUTINA              PIC 9(03).
+          05 CN-REG-LEIDOS-FENTRADA     PIC 9(03).
+          05 CN-REG-ESCRITOS-FSALIDA    PIC 9(03).
+      *
+       01 WK-VARIAVLES.
+          05 WK-SQLCODE                  PIC -999.
+      *
+       01 FS-FILE-STATUS.
+          05 FS-FENTRADA                PIC X(02).
+          05 FS-FSALIDA                 PIC X(02).
+      *
+       01 SW-SWITCHES.
+          05 SW-FIN-FENTRADA            PIC X(01).
+             88 SW-SI-FIN-FENTRADA               VALUE 'S'.
+             88 SW-NO-FIN-FENTRADA               VALUE 'N'.
+          05 SW-FIN-CURSOR              PIC X(01).
+             88 SW-SI-FIN-CURSOR                 VALUE 'S'.
+             88 SW-NO-FIN-CURSOR                 VALUE 'N'.
+      *
+      * COPY DEL FICHERO DE ENTRADA
+       COPY CPYEJR1.
+      *
+      * COPY DEL FICHERO DE SALIDA
+       COPY CPYSJR1.
+      *
+      * COPY DE LA RUTINA
+       COPY CPYREJR1.
+      *
+           EXEC SQL
+               INCLUDE SQLCA
+           END-EXEC.
+      *
+           EXEC SQL
+               INCLUDE TBDIRELE
+           END-EXEC.
+      *
+      * DECLARACION DEL CURSOR
+      *
+           EXEC SQL
+                DECLARE CRDIRELEC CURSOR FOR
+                  SELECT TIPO_DIR_ELEC
+                        ,VALOR
+                    FROM DIRELEC
+                    WHERE COD_CLIENTE = :TB-COD-CLIENTE
+           END-EXEC.
+      *
+      ******************************************************************
+      *    PROCEDURE DIVISION                                          *
+      ******************************************************************
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FENTRADA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      * 1000-INICIO
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE CN-CONTADORES
+                      FS-FILE-STATUS
+                      CPY-CLIENTES-E
+                      CPY-SALIDA-DIREL-PROV
+                      CPY-EJRUT01
+                      DCLDIRELEC
+      *
+           SET SW-NO-FIN-CURSOR         TO TRUE
+           SET SW-NO-FIN-FENTRADA       TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 1100-ABRIR-FICHEROS
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT FENTRADA
+                OUTPUT FSALIDA
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE ENTRADA'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ABRIR EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '1100-ABRIR-FICHEROS'
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+      *
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2000-PROCESO
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+            PERFORM 2050-ABRIR-CURSOR
+               THRU 2050-ABRIR-CURSOR-EXIT
+      *
+           PERFORM 2100-LEER-CURSOR
+              THRU 2100-LEER-CURSOR-EXIT
+             UNTIL SW-SI-FIN-CURSOR
+      *
+           PERFORM 2400-CERRAR-CURSOR
+              THRU 2400-CERRAR-CURSOR-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2050-ABRIR-CURSOR
+      ******************************************************************
+      *
+       2050-ABRIR-CURSOR.
+      *
+           EXEC SQL
+                OPEN CRDIRELEC
+           END-EXEC.
+      *
+           IF SQLCODE NOT = 0
+              DISPLAY 'ERROR ABRIR CURSOR'
+              MOVE SQLCODE TO WK-SQLCODE
+              DISPLAY 'SQLCODE: ' WK-SQLCODE
+              DISPLAY '2050-ABRIR-CURSOR'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           END-IF
+      *
+           .
+      *
+       2050-ABRIR-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2100-LEER-CURSOR
+      ******************************************************************
+      *
+       2100-LEER-CURSOR.
+      *
+           INITIALIZE TB-TIPO-DIR-ELEC
+                      TB-VALOR
+           EXEC SQL
+               FETCH CRDIRELEC
+                INTO
+                     :TB-TIPO-DIR-ELEC
+                    ,:TB-VALOR
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                    ADD 1            TO CN-REG-CURSOR
+                    IF TB-TIPO-DIR-ELEC = CA-TLF
+                    PERFORM 2200-LLAMAR-RUTINA
+                       THRU 2200-LLAMAR-RUTINA-EXIT
+                    END-IF
+               WHEN 100
+                    SET SW-SI-FIN-CURSOR TO TRUE
+                    INITIALIZE CPY-CLIENTES-E
+      *
+               WHEN OTHER
+                    DISPLAY 'ERROR DB2'
+                    DISPLAY 'FETCH DIRELC'
+                    DISPLAY 'TABLA: DIRELEC'
+                    MOVE SQLCODE TO WK-SQLCODE
+                    DISPLAY 'SQLCODE: ' WK-SQLCODE
+
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2100-LEER-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2200-LLAMAR-RUTINA
+      ******************************************************************
+      *
+       2200-LLAMAR-RUTINA.
+      *
+           MOVE TB-VALOR TO VALOR-DIR-RUT
+      *
+           CALL CA-RUTINA USING CPY-EJRUT01
+      *
+           EVALUATE COD-RETORNO
+               WHEN CA-00
+                  ADD 1                   TO CN-REG-RUTINA
+                  PERFORM 2300-ESCRIBIR-FSALIDA
+                     THRU 2300-ESCRIBIR-FSALIDA-EXIT
+               WHEN OTHER
+                    DISPLAY 'COD-RETORNO    : ' COD-RETORNO
+                    DISPLAY 'COD-SUBRETORNO : ' COD-SUBRETORNO
+                    DISPLAY 'PARRAFO-RUT    : ' PARRAFO-RUT
+                    DISPLAY 'DESCRIPCION-RUT: ' DESCRIPCION-RUT
+                    DISPLAY 'ELEMENTO-RUT   : ' ELEMENTO-RUT
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       2200-LLAMAR-RUTINA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2300-ESCRIBIR-SALIDA
+      ******************************************************************
+      *
+       2300-ESCRIBIR-FSALIDA.
+      *
+           MOVE COD-CLIENTE-E        TO COD-CLIENTE-S
+           MOVE NIF-E                TO NIF-S
+           MOVE NOMBRE-E             TO NOMBRE-S
+           MOVE APELLIDOS-E          TO APELLIDOS-S
+           MOVE TB-TIPO-DIR-ELEC     TO TIPO-DIR-ELEC-S
+           MOVE TB-VALOR             TO VALOR-DIR-S
+           MOVE VALOR-DIR-RUT        TO PREFIJO-S
+           MOVE PROVINCIA-RUT        TO PROVINCIA-S
+      *
+           WRITE REG-FSALIDA FROM CPY-SALIDA-DIREL-PROV
+      *
+
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL ESCRIBIR EN EL FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '2100-ESCRIBIR-SALIDA'
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+
+           ELSE
+              INITIALIZE CPY-SALIDA-DIREL-PROV
+                         TB-COD-CLIENTE
+              ADD 1 TO CN-REG-ESCRITOS-FSALIDA
+           END-IF
+      *
+           .
+      *
+       2300-ESCRIBIR-FSALIDA-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 2400-CERRAR-CURSOR
+      ******************************************************************
+      *
+       2400-CERRAR-CURSOR.
+      *
+           EXEC SQL
+               CLOSE CRDIRELEC
+           END-EXEC.
+      *
+           IF SQLCODE NOT = 0
+              DISPLAY 'ERROR AL CERRAR EL SURSOR'
+              DISPLAY 'CURSOR: CRDIRELC'
+              MOVE SQLCODE TO WK-SQLCODE
+              DISPLAY 'SQLCODE: ' WK-SQLCODE
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       2400-CERRAR-CURSOR-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3000-FIN
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-ESTADISTICAS
+              THRU 3200-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3100-CERRAR-FICHEROS
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+                 FSALIDA
+      *
+           IF FS-FENTRADA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE ENTRADA'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           IF FS-FSALIDA NOT = CA-00
+              DISPLAY 'ERROR AL CERRAR FICHERO DE SALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '3100-CERRAR-FICHEROS'
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 3200-ESTADISTICAS
+      ******************************************************************
+      *
+       3200-ESTADISTICAS.
+      *
+           DISPLAY '************************************************'
+           DISPLAY '****    ESTADISTICAS DEL PGM EJRUTC01   ********'
+           DISPLAY '************************************************'
+           DISPLAY '*REG. CONSULTADOS EN CURSOR: ' CN-REG-CURSOR
+           DISPLAY '*REG. CONSULTADOS EN RUTINA: ' CN-REG-RUTINA
+           DISPLAY '*REG. LEIDOS EN ENTRADA: ' CN-REG-LEIDOS-FENTRADA
+           DISPLAY '*REG. ESCRITOS EN SALIDA: ' CN-REG-ESCRITOS-FSALIDA
+      *
+           .
+      *
+       3200-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      * 9000-LEER-FENTRADA
+      ******************************************************************
+      *
+       9000-LEER-FENTRADA.
+      *
+           READ FENTRADA INTO CPY-CLIENTES-E
+      *
+           EVALUATE FS-FENTRADA
+              WHEN CA-00
+                   MOVE COD-CLIENTE-E  TO TB-COD-CLIENTE
+                   ADD 1               TO CN-REG-LEIDOS-FENTRADA
+                   SET SW-NO-FIN-CURSOR       TO TRUE
+              WHEN CA-10
+                   SET SW-SI-FIN-FENTRADA     TO TRUE
+              WHEN OTHER
+                   DISPLAY 'ERROR AL LEER EL FICHERO FENTRADA'
+                   DISPLAY 'PARRAFO: 9000-LEER-FENTRADA'
+                   DISPLAY 'NOMBRE FICHERO: FENTRADA'
+                   DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+                   PERFORM 3000-FIN
+                      THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FENTRADA-EXIT.
+           EXIT.
+      *

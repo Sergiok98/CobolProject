@@ -1,0 +1,293 @@
+      *
+      ******************************************************************
+      **  PGM QUE REALIZA LA CONTRAVALORACION DE LAS TRANSFERENCIAS   **
+      **  QUE RECIBIMOS EN EL FICHERO DE ENTRADA, TRANSFORMANDO LOS   **
+      **  IMPORTES A EUROS EN EL FICHERO DE SALIDA.                   **
+      ******************************************************************
+      *
+      ******************************************************************
+      **  I D E N T I F I C A T I O N     D I V I S I O N             **
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. PGMDIVI.
+       AUTHOR. CRISTIAN TORRES.
+       DATE-WRITTEN. 01/06/2023.
+       INSTALLATION. HERCULES.
+      *
+      ******************************************************************
+      **  E N V I R O N M E N T           D I V I S I O N             **
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *- FICHEROS DE ENTRADA/SALIDA  ----------------------------------*
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *
+           SELECT FENTRADA ASSIGN TO FENTRADA
+           FILE STATUS IS FS-FENTRADA.
+      *
+           SELECT FSALIDA  ASSIGN TO FSALIDA
+           FILE STATUS IS FS-FSALIDA.
+      *
+      ******************************************************************
+      **               D A T A      D I V I S I O N                   **
+      ******************************************************************
+      *
+       DATA DIVISION.
+       FILE SECTION.
+       FD FENTRADA RECORDING MODE F.
+       01  REG-FENTRADA               PIC X(101).
+      *
+       FD FSALIDA RECORDING MODE F.
+       01  REG-FSALIDA                PIC X(101).
+      *
+      *********** W O R K I N G      S T O R A G E *********************
+      *
+       WORKING-STORAGE SECTION.
+      *
+      *FILE STATUS.
+      *
+       01  FS-FILE-STATUS.
+           05  FS-FENTRADA                   PIC X(02).
+           05  FS-FSALIDA                    PIC X(02).
+      *
+       01  CA-CONSTANTES.
+           05  CA-RUTINA                     PIC X(08) VALUE 'RUTDIVI'.
+      *
+       01  CN-CONTADORES.
+           05  CN-REG-LEIDOS                 PIC 9(03).
+           05  CN-REG-ESCRITOS               PIC 9(03).
+      *
+       01  SW-SWITCHES.
+           05  SW-FIN-FICHERO-FENTRADA       PIC X(01).
+               88  SI-FIN-FENTRADA           VALUE 'S'.
+               88  NO-FIN-FENTRADA           VALUE 'N'.
+      *
+      *ZONA DE COPYS (SIEMPRE AL FINAL DE LA WORKING)
+      *
+      *COPY DE LOS FICHEROS DE ENTRADA/SALIDA
+       COPY CPYCONTR.
+      *COPY DE LA RUTINA RUTDIVI
+       COPY CPYRUTDI.
+      *
+      ******************************************************************
+      **    P R O C E D U R E       D I V I S I O N                   **
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SI-FIN-FENTRADA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES
+                      COPY-CPYCONTR
+                      COPY-CPYRUTDI
+      *
+           SET NO-FIN-FENTRADA            TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT FENTRADA
+           OPEN OUTPUT FSALIDA
+      *  ´ ´
+           IF FS-FENTRADA NOT = '00'
+              DISPLAY 'ERROR AL ABRIR EL FICHERO FENTRADA'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           IF FS-FSALIDA  NOT = '00'
+              DISPLAY 'ERROR AL ABRIR EL FICHERO FSALIDA'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-INVOCAR-RUT-CONTR
+              THRU 2100-INVOCAR-RUT-CONTR-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+       2100-INVOCAR-RUT-CONTR.
+      *
+      *INFORMAMOS LOS CAMPOS LEIDOS DEL REG. DEL FICHERO DE ENTRADA
+      *A LOS CAMPOS DENTRADA DE LA RUTINA
+           MOVE IMPORTE             TO IMPORTE-ORIG
+           MOVE DIVISA              TO DIVISA-ORIG
+           MOVE 'EUR'               TO DIVISA-DEST
+      *
+           CALL CA-RUTINA           USING COPY-CPYRUTDI
+      *
+           EVALUATE COD-RETORNO
+               WHEN '00'
+                    PERFORM 2200-ESCRIBIR-FSALIDA
+                       THRU 2200-ESCRIBIR-FSALIDA-EXIT
+               WHEN '88'
+                    DISPLAY COD-RETORNO
+                    DISPLAY COD-SUBRETORNO
+                    DISPLAY PARRAFO
+                    DISPLAY DESCRIPCION
+                    DISPLAY TABLA
+               WHEN '99'
+                    DISPLAY COD-RETORNO
+                    DISPLAY COD-SUBRETORNO
+                    DISPLAY PARRAFO
+                    DISPLAY DESCRIPCION
+                    DISPLAY TABLA
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+           .
+      *
+       2100-INVOCAR-RUT-CONTR-EXIT.
+           EXIT.
+      *
+       2200-ESCRIBIR-FSALIDA.
+      *
+           MOVE IMPORTE-DEST       TO IMPORTE
+           MOVE 'EUR'              TO DIVISA
+      *
+           WRITE REG-FSALIDA FROM COPY-CPYCONTR
+      *
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL ESCRIBIR EN FSALIDA'
+              DISPLAY 'PARRAFO: 2200-ESCRIBIR-FSALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           ELSE
+              ADD 1                 TO CN-REG-ESCRITOS
+           END-IF
+      *
+           .
+      *
+       2200-ESCRIBIR-FSALIDA-EXIT.
+           EXIT.
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-MOSTRAR-ESTADISTICAS
+              THRU 3200-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+           CLOSE FSALIDA
+      *
+           IF FS-FENTRADA NOT = '00'
+              DISPLAY 'ERROR AL CERRAR FENTRADA'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+           END-IF
+      *
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL CERRAR FSALIDA'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+       3200-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '***********************************************'
+           DISPLAY '*****    ESTADISTICAS DEL PGM PGMDIVI   *******'
+           DISPLAY '***********************************************'
+           DISPLAY 'REG. LEIDOS EN FENTRADA: ' CN-REG-LEIDOS
+           DISPLAY 'REG. ESCRITOS EN FSALIDA: ' CN-REG-ESCRITOS
+           DISPLAY '***********************************************'
+           .
+      *
+       3200-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+       9000-LEER-FENTRADA.
+      *
+      **HACEMOS READ Y VOLCAMOS MEDIANTE EL INTO LA INFORMACION DEL
+      **REGISTRO LEIDO EN EL NIVEL 01 DE LA COPY DONDE QUEREMOS GUARDAR
+      **LA INFO
+      *
+           READ FENTRADA INTO COPY-CPYCONTR
+      *
+           EVALUATE FS-FENTRADA
+               WHEN '00'
+                    ADD 1                TO CN-REG-LEIDOS
+               WHEN '10'
+                    DISPLAY 'FINAL DEL FICHERO'
+                    SET SI-FIN-FENTRADA        TO TRUE
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER FENTRADA'
+                    DISPLAY 'PARRAFO: 9000-LEER-FENTRADA'
+                    DISPLAY 'FS-FENTRADA: ' FS-FENTRADA
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FENTRADA-EXIT.
+           EXIT.
+      *

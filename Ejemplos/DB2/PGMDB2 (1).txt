@@ -1,0 +1,303 @@
+      ******************************************************************
+      ** P G M D B 2 .- PGM QUE LEERA UN FICHERO CON INFORMACION DE   **
+      **                AUTORES LITERARIOS E INSERTARA DICHA          **
+      **                INFORMACION EN LA TABLA DB2 AUTORES.          **
+      ******************************************************************
+      *
+      ******************************************************************
+      ** IDENTIFICATION DIVISION                                      **
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+       PROGRAM-ID. PGMDB2.
+       AUTHOR. CRISTIAN.
+       INSTALLATION. EOI.
+       DATE-WRITTEN. 12/09/2024.
+      *
+      ******************************************************************
+      ** ENVIRONMENT DIVISION                                         **
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT FENTRADA ASSIGN TO FENTRADA
+           FILE STATUS FS-FENTRADA.
+      *
+      ******************************************************************
+      ** DATA DIVISION                                                **
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+       FD FENTRADA
+           RECORDING MODE IS F.
+       01  REG-FENTRADA               PIC X(270).
+      *
+       WORKING-STORAGE SECTION.
+      *
+       01  FS-FILE-STATUS.
+           05  FS-FENTRADA            PIC X(02).
+      *
+       01  CN-CONTADORES.
+           05  CN-REG-LEIDOS-FENTRADA PIC 9(03).
+           05  CN-REG-INSERT-AUTORES  PIC 9(03).
+      *
+       01  SW-SWITCHES.
+           05  SW-FIN-FENTRADA        PIC X(01).
+               88  SW-SI-FIN-FENTRADA VALUE 'S'.
+               88  SW-NO-FIN-FENTRADA VALUE 'N'.
+      *
+      *
+      *COPY DEL FICHERO DE ENTRADA FENTRADA
+       COPY CPYAUTOR.
+      *
+      **COPY NECESARIA PARA LA CORRECTA COMUNICACION CON DB2
+           EXEC SQL
+              INCLUDE SQLCA
+           END-EXEC.
+      *
+      **DCLGEN DE LA TABLA AUTORES LA CUAL VAMOS A USAR EN EL PGM
+           EXEC SQL
+              INCLUDE TBAUTOR
+           END-EXEC.
+      *
+      ******************************************************************
+      ** PROCEDURE DIVISION                                           **
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+      *
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FENTRADA
+      *
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+      *
+           .
+      *
+      ******************************************************************
+      ** 1000-INICIO                                                  **
+      ** INICIALIZAR VARIABLES                                        **
+      ** APERTURA DE FICHEROS                                         **
+      ******************************************************************
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES
+                      CPY-CPYAUTOR
+                      DCLAUTORES
+                      SQLCA
+      *
+           SET SW-NO-FIN-FENTRADA        TO TRUE
+      *
+           PERFORM 1100-ABRIR-FICHEROS
+              THRU 1100-ABRIR-FICHEROS-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 1100-ABRIR-FICHEROS                                          **
+      ** ABRIMOS LOS FICHEROS DE ENTRADA Y SALIDA COMPROBANDO SU      **
+      ** FILE STATUS.                                                 **
+      ******************************************************************
+      *
+       1100-ABRIR-FICHEROS.
+      *
+           OPEN INPUT  FENTRADA
+      *
+           IF FS-FENTRADA NOT = '00'
+              DISPLAY 'ERROR AL ABRIR EL FICHERO FENTRADA'
+              DISPLAY 'PARRAFO: 1100-ABRIR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+      *
+       1100-ABRIR-FICHEROS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2000-PROCESO                                                 **
+      ** INSERTAMOS EN LA TABLA AUTORES EL REGISTRO LEIDO.            **
+      ** UNA VEZ INSERTADO LEEMOS EL SIGUIENTE REGISTRO.              **
+      ******************************************************************
+      *
+       2000-PROCESO.
+      *
+           PERFORM 2100-INSERTAR-AUTORES
+              THRU 2100-INSERTAR-AUTORES-EXIT
+      *
+           PERFORM 9000-LEER-FENTRADA
+              THRU 9000-LEER-FENTRADA-EXIT
+      *
+           .
+      *
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 2100-INSERTAR-AUTORES                                        **
+      ** INSERTAMOS EN LA TABLA AUTORES MEDIANTE LA SENTENCIA INSERT  **
+      ** SQL, HABIENDO INFORMADO PREVIAMENTE LOS CAMPOS DE LA DCL.    **
+      ******************************************************************
+      *
+       2100-INSERTAR-AUTORES.
+      *
+           MOVE ID-AUTOR-E                 TO TB-ID-AUTOR
+           MOVE LENGTH OF NOMBRE-AUTOR-E   TO TB-NOMBRE-LEN
+           MOVE NOMBRE-AUTOR-E             TO TB-NOMBRE-TEXT
+           MOVE LENGTH OF NACIONALIDAD-E   TO TB-NACIONALIDAD-LEN
+           MOVE NACIONALIDAD-E             TO TB-NACIONALIDAD-TEXT
+           MOVE FECHA-NACIMIENTO-E         TO TB-FECHA-NACIMIENTO
+      *
+           EXEC SQL
+               INSERT INTO AUTORES
+                 VALUES(
+                     :TB-ID-AUTOR
+                    ,:TB-NOMBRE
+                    ,:TB-NACIONALIDAD
+                    ,:TB-FECHA-NACIMIENTO
+                 )
+           END-EXEC
+      *
+           EVALUATE SQLCODE
+               WHEN 0
+                    ADD 1           TO  CN-REG-INSERT-AUTORES
+               WHEN -803
+                    DISPLAY 'ERROR. REG. DUPLICADO'
+                    DISPLAY '2100-INSERTAR-AUTORES'
+                    DISPLAY 'CAMPO CLAVE: ID_AUTOR: ' TB-ID-AUTOR
+                    DISPLAY 'TABLA: AUTORES'
+                    DISPLAY 'SQLCODE: ' SQLCODE
+               WHEN OTHER
+                    DISPLAY 'ERROR DB2'
+                    DISPLAY '2100-INSERTAR-AUTORES'
+                    DISPLAY 'TABLA: AUTORES'
+                    DISPLAY 'SQLCODE: ' SQLCODE
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+            END-EVALUATE
+      *
+            .
+      *
+       2100-INSERTAR-AUTORES-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3000-FIN                                                     **
+      ** MOSTRAMOS LOS DATOS DEL PRESTAMO.                            **
+      ** FINALIZAMOS EL PGM.                                          **
+      ******************************************************************
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+      *
+           PERFORM 3200-MOSTRAR-ESTADISTICAS
+              THRU 3200-MOSTRAR-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+      *
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 3100-CERRAR-FICHEROS                                         **
+      ** CERRAMOS LOS FICHEROS DE ENTRADA CONTROLANDO SU              **
+      ** FILE STATUS.                                                 **
+      ******************************************************************
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FENTRADA
+      *
+           IF FS-FENTRADA NOT = '00'
+              DISPLAY 'ERROR AL CERRAR EL FICHERO FENTRADA'
+              DISPLAY 'PARRAFO: 3100-CERRAR-FICHEROS'
+              DISPLAY 'NOMBRE FICHERO: FENTRADA'
+              DISPLAY 'FILE STATUS: ' FS-FENTRADA
+           END-IF
+      *
+           .
+      *
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      *
+      ******************************************************************
+      ** 3200-MOSTRAR-ESTADISTICAS                                    **
+      ** MOSTRAMOS ESTADISTICAS DEL PGM IMPRIMIENTO LOS REG. LEIDOS   **
+      ** DEL FICHERO DE ENTRADA Y LOS REG. ESCRITOS DEL FICH. DE SALIDA*
+      ******************************************************************
+      *
+       3200-MOSTRAR-ESTADISTICAS.
+      *
+           DISPLAY '*******************************'
+           DISPLAY '**D A T O S   P G M D B 2    **'
+           DISPLAY '*******************************'
+           DISPLAY '*REG.LEIDOS FENTRA' CN-REG-LEIDOS-FENTRADA '   *'
+                   '*'
+           DISPLAY '*REG.INSERT AUTORE' CN-REG-INSERT-AUTORES '*'
+           DISPLAY '*******************************'
+      *
+           .
+      *
+       3200-MOSTRAR-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+      ******************************************************************
+      ** 9000-LEER-FENTRADA                                           **
+      ** LEEMOS REGISTRO DEL FICHERO FENTRADA CONTROLANDO SU FILE     **
+      ** STATUS.                                                      **
+      ******************************************************************
+      *
+       9000-LEER-FENTRADA.
+      *
+           READ FENTRADA INTO CPY-CPYAUTOR
+      *
+           EVALUATE FS-FENTRADA
+               WHEN '00'
+                    ADD 1               TO CN-REG-LEIDOS-FENTRADA
+               WHEN '10'
+                    SET SW-SI-FIN-FENTRADA     TO TRUE
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER EL FICHERO FENTRADA'
+                    DISPLAY 'PARRAFO: 9000-LEER-FENTRADA'
+                    DISPLAY 'NOMBRE FICHERO: FENTRADA'
+                    DISPLAY 'FILE STATUS: ' FS-FENTRADA
+      *
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+           END-EVALUATE
+      *
+           .
+      *
+       9000-LEER-FENTRADA-EXIT.
+           EXIT.

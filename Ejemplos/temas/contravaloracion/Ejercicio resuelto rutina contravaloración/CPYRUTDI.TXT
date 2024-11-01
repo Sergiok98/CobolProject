@@ -1,0 +1,32 @@
+      ******************************************************************
+      *                 COPY PARA EL MAPEO DE LA RUTINA
+      *                      DE CONTRAVALORACION
+      *
+      *  ENTRADA.-
+      *  IMPORT-ORIG  - IMPORTE DE LA TRANSFERENCIA
+      *            - NUM 5 ENTEROS + 3 DEC
+      *
+      *  DIVISA-ORIG - DIVISA ORIGEN - ALFANUM 03
+      *  DIVISA-DEST - DIVISA DESTINO - ALFANUM 03
+      *
+      *  SALIDA.-
+      *  IMPORTE-DEST - IMPORTE DE LA TRANSFERENCIA
+      *            - NUM 5 ENTEROS + 3 DEC
+      *
+      *  LONGITUD: 140
+      ******************************************************************
+      *
+       01  COPY-CPYRUTDI.
+           05 ENTRADA-RUT.
+               10 IMPORTE-ORIG       PIC S9(05)V9(03).
+               10 DIVISA-ORIG        PIC X(03).
+               10 DIVISA-DEST        PIC X(03).
+             05 SALIDA-RUT.
+               10 IMPORTE-DEST       PIC S9(05)V9(03).
+             05 ERRORES-RUT.
+               10 COD-RETORNO        PIC X(02).
+               10 COD-SUBRETORNO     PIC X(02).
+               10 PARRAFO            PIC X(30).
+               10 DESCRIPCION        PIC X(50).
+               10 TABLA              PIC X(30).
+               10 SQLCODE-RUT        PIC -999.

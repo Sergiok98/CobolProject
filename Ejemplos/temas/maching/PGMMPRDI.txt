@@ -1,0 +1,436 @@
+      ******************************************************************
+      *     I D E N T I F I C A T I O N        D I V I S I O N
+      ******************************************************************
+      *
+       IDENTIFICATION DIVISION.
+      *
+      ******************************************************************
+      * DESCRIPCION DEL PGM: PGM QUE A PARTIR DE 2 FICHEROS DE ENTRADA
+      * DE PACIENTE Y MEDICOS, GENERA 4 FICHEROS DE SALIDA, CON LA INFO
+      * DE LOS CLIENTES SEGUN SI TIENEN O NO SEGURO MEDICO PRIVADO Y
+      * CUAL EN EL CASO DE SI.
+      ******************************************************************
+      *
+       PROGRAM-ID. PGMMPRDI.
+       AUTHOR. ALBERTO-R.
+       INSTALLATION. EOI.
+       DATE-WRITTEN. 07/06/2023.
+       DATE-COMPILED. 07/06/2023.
+      *
+      ******************************************************************
+      *
+      *   E N V I R O N M E N T              D I V I S I O N
+      *   ---------------------              ---------------
+      *
+      * DEFINIR LOS FICHEROS DE ENTRADA Y SALIDA QUE VAN A SER USADOS
+      * DENTRO DEL PGM COBOL. RELACIONAR LOS NOMBRES LOGICOS DE LOS
+      * FICHEROS EN EL PGRAMA CON NOMBRES DE LOS FICHEROS DE LOS JCLS.
+      * DOS SECCIONES:
+      *     - CONFIGURATION SECTION
+      *       DEFINIR EL NOMBRE DE LOS PROCESADORES DONDE SE COMPILA Y
+      *       EJECUTA EL PGM (NO ES OBLIGATORIO).
+      *     - INPUT-OUTPUT SECTION
+      *       DEFINIR LOS DISPOSITIVOS PERIFERICOS (IMPRESORAS, ETC)
+      *       SE DEFINEN TAMBIEN LOS FICHEROS DE E/S QUE SE USARAN EN EL
+      *       PRGRAMA.
+      ******************************************************************
+      *
+       ENVIRONMENT DIVISION.
+      *
+       CONFIGURATION SECTION.
+         SOURCE-COMPUTER. IBM-3090.
+         OBJECT-COMPUTER. IBM-3090.
+      *
+       SPECIAL-NAMES.
+           DECIMAL-POINT IS COMMA.
+      *
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+      *
+           SELECT FPROVIN ASSIGN TO FPROVIN
+           FILE STATUS IS FS-FPROVIN.
+      *
+           SELECT FDIRELE ASSIGN TO FDIRELE
+           FILE STATUS IS FS-FDIRELE.
+      *
+           SELECT FSALIDA ASSIGN TO FSALIDA
+           FILE STATUS IS FS-FSALIDA.
+      *
+      ******************************************************************
+      *   D A T A                D I V I S I O N
+      *   --------------------------------------
+      *
+      * IDENTIFICA LOS NOMBRES DE DATOS UTILIZADOS EN EL PGM.
+      * CONTIENE 3 SECCIONES:
+      *      - FILE SECTION.
+      *        DESCRIBIR LOS FICHEROS DE ENTRADA Y SALIDA QUE SE USAN
+      *        EN EL PGM COBOL.
+      *      - WORKING STORAGE SECTION.
+      *        DEFINIR LOS CAMPOS DE TRABAJO NECESARIOS PARA EL PGM.
+      *        (VARIABLES, CONSTANTES, ACUMULADORES, CONTADORES,
+      *         SWITHCHES, COPYS, DCLGENS, TABLAS INTERNAS, CURSORES...
+      *      - LINKAGE SECTION.
+      *        SE USARA CUANDO EL PGM SEA DE TIPO RUTINA, YA QUE ES LA
+      *        ZONA QUE SIRVE COMO COMUNICACION CON EL PGM QUE LO INVOCA
+      ******************************************************************
+      *
+       DATA DIVISION.
+      *
+       FILE SECTION.
+      *
+      ******************************************************************
+      *   F I L E       S E C T I O N
+      ******************************************************************
+      *
+       FD FPROVIN
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FPROVIN.
+      *
+       01  REG-FPROVIN             PIC X(22).
+      *
+       FD FDIRELE
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FDIRELE.
+      *
+       01  REG-FDIRELE             PIC X(32).
+      *
+       FD FSALIDA
+           BLOCK CONTAINS 0 RECORDS
+           LABEL RECORD ARE STANDARD
+           RECORDING MODE IS F
+           DATA RECORD IS REG-FSALIDA.
+      *
+       01  REG-FSALIDA             PIC X(52).
+      *
+      ******************************************************************
+      *   W O R K I N G       S T O R A G E      S E C T I O N
+      ******************************************************************
+      *
+       WORKING-STORAGE SECTION.
+      *LUGAR DONDE DECLARAMOS CONSTANTES, VARIABLES, COPYS, SWITHCHES
+       01  FS-FILE-STATUS.
+           05  FS-FPROVIN              PIC X(02).
+           05  FS-FDIRELE              PIC X(02).
+           05  FS-FSALIDA              PIC X(02).
+      *
+       01  CN-CONTADORES-FICHEROS.
+           05  CN-REG-LEIDOS-FPROVIN   PIC 9(03).
+           05  CN-REG-LEIDOS-FDIRELE   PIC 9(03).
+           05  CN-REG-ESCRITO-FSALIDA  PIC 9(03).
+      *
+       01  WK-CLAVE1                   PIC X(02).
+      *
+       01  WK-CLAVE2                   PIC X(02).
+      *
+       01  SW-SWITCHES.
+           05  SW-FIN-FPROVIN          PIC X(01).
+               88  SW-NO-FIN-FPROVIN   VALUE 'N'.
+               88  SW-SI-FIN-FPROVIN   VALUE 'S'.
+           05  SW-FIN-FDIRELE          PIC X(01).
+               88  SW-NO-FIN-FDIRELE   VALUE 'N'.
+               88  SW-SI-FIN-FDIRELE   VALUE 'S'.
+      *
+      *COPY DEL FICHERO DE ENTRADA DE PROVINCIA Y DIRELEC
+      *
+      *
+           EXEC SQL
+               INCLUDE TBPROVIN
+           END-EXEC.
+      *
+           EXEC SQL
+               INCLUDE TBDIRELE
+           END-EXEC.
+      *
+      *
+      *COPY DEL FICHERO DE SALIDA
+      *
+       COPY CPYSMPD.
+      *
+      ******************************************************************
+      *   P R O C E D U R E             D I V I S I O N
+      ******************************************************************
+      *
+       PROCEDURE DIVISION.
+      *
+           PERFORM 1000-INICIO
+              THRU 1000-INICIO-EXIT
+
+           PERFORM 2000-PROCESO
+              THRU 2000-PROCESO-EXIT
+             UNTIL SW-SI-FIN-FPROVIN AND SW-SI-FIN-FDIRELE
+
+           PERFORM 3000-FIN
+              THRU 3000-FIN-EXIT
+
+           .
+      *
+       1000-INICIO.
+      *
+           INITIALIZE FS-FILE-STATUS
+                      CN-CONTADORES-FICHEROS
+                      WK-CLAVE1
+                      WK-CLAVE2
+                      DCLPROVINCIAS
+                      DCLDIRELEC
+                      CPYSMPD
+
+           SET SW-NO-FIN-FPROVIN   TO TRUE
+           SET SW-NO-FIN-FDIRELE   TO TRUE
+      *
+
+           PERFORM 1050-ABRIR-FPROVIN
+              THRU 1050-ABRIR-FPROVIN-EXIT
+
+           PERFORM 1100-ABRIR-FDIRELE
+              THRU 1100-ABRIR-FDIRELE-EXIT
+
+           PERFORM 1150-ABRIR-SALIDA
+              THRU 1150-ABRIR-SALIDA-EXIT
+
+           PERFORM 9000-LEER-FPROVIN
+              THRU 9000-LEER-FPROVIN-EXIT
+
+           PERFORM 9100-LEER-FDIRELE
+              THRU 9100-LEER-FDIRELE-EXIT
+      *
+           .
+       1000-INICIO-EXIT.
+           EXIT.
+      *
+      *
+       1050-ABRIR-FPROVIN.
+      *
+           OPEN INPUT FPROVIN
+
+           IF FS-FPROVIN NOT = '00'
+              DISPLAY 'ERROR AL ABRIR FICHERO ENTRADA FPROVIN'
+              DISPLAY 'FS-FPROVIN: ' FS-FPROVIN
+              DISPLAY '1050-ABRIR-FPROVIN'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+       1050-ABRIR-FPROVIN-EXIT.
+           EXIT.
+      *
+       1100-ABRIR-FDIRELE.
+      *
+           OPEN INPUT FDIRELE
+
+           IF FS-FDIRELE NOT = '00'
+              DISPLAY 'ERROR AL ABRIR FICHERO ENTRADA FDIRELE'
+              DISPLAY 'FS-FDIRELE: ' FS-FDIRELE
+              DISPLAY '1100-ABRIR-FDIRELE'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+
+      *
+           .
+       1100-ABRIR-FDIRELE-EXIT.
+           EXIT.
+
+      *
+       1150-ABRIR-SALIDA.
+
+           OPEN OUTPUT FSALIDA
+      *
+      *
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL ABRIR FICHERO SALIDA FSALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '1150-ABRIR-SALIDAS'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+           END-IF
+      *
+           .
+       1150-ABRIR-SALIDA-EXIT.
+           EXIT.
+      *
+      *
+       2000-PROCESO.
+      *
+           IF WK-CLAVE1 = WK-CLAVE2
+
+              PERFORM 2100-ESCRIBIR-FSALIDA
+                 THRU 2100-ESCRIBIR-FSALIDA-EXIT
+
+              PERFORM 9100-LEER-FDIRELE
+                 THRU 9100-LEER-FDIRELE-EXIT
+
+           ELSE
+
+              IF WK-CLAVE1 < WK-CLAVE2
+
+                 PERFORM 9000-LEER-FPROVIN
+                    THRU 9000-LEER-FPROVIN-EXIT
+
+              ELSE
+
+                 PERFORM 9100-LEER-FDIRELE
+                    THRU 9100-LEER-FDIRELE-EXIT
+              END-IF
+
+           END-IF
+      *
+           .
+       2000-PROCESO-EXIT.
+           EXIT.
+      *
+      *
+       2100-ESCRIBIR-FSALIDA.
+      *
+           MOVE TB-TIPO-DIR-ELEC  TO TIPO-DIR-ELEC-S
+           MOVE TB-VALOR          TO VALOR-S
+           MOVE TB-COD-CLIENTE    TO COD-CLIENTE-S
+           MOVE TB-PROVINCIA      TO PROVINCIA-S
+
+           WRITE REG-FSALIDA FROM CPYSMPD
+
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL ESCRIBIR EN FICHERO SALIDA '
+              DISPLAY 'FS-FFIBRA: ' FS-FSALIDA
+              DISPLAY '2100-ESCRIBIR-FSALIDA'
+
+              PERFORM 3000-FIN
+                 THRU 3000-FIN-EXIT
+
+           ELSE
+              INITIALIZE CPYSMPD
+              ADD 1            TO CN-REG-ESCRITO-FSALIDA
+           END-IF
+      *
+           .
+       2100-ESCRIBIR-FSALIDA-EXIT.
+           EXIT.
+      *
+      *
+      *
+       3000-FIN.
+      *
+           PERFORM 3100-CERRAR-FICHEROS
+              THRU 3100-CERRAR-FICHEROS-EXIT
+
+           PERFORM 3200-ESTADISTICAS
+              THRU 3200-ESTADISTICAS-EXIT
+      *
+           STOP RUN
+      *
+           .
+       3000-FIN-EXIT.
+           EXIT.
+      *
+      *
+      *
+       3100-CERRAR-FICHEROS.
+      *
+           CLOSE FPROVIN
+                 FDIRELE
+                 FSALIDA
+
+           IF FS-FPROVIN NOT = '00'
+              DISPLAY 'ERROR AL CERRAR FICHERO ENTRADA FPROVIN'
+              DISPLAY 'FS-FPROVIN: ' FS-FPROVIN
+              DISPLAY '3100-CERRAR-FICHEROS'
+
+           END-IF
+      *
+           IF FS-FDIRELE NOT = '00'
+              DISPLAY 'ERROR AL CERRAR FICHERO ENTRADA FDIRELE'
+              DISPLAY 'FS-FDIRELE: ' FS-FDIRELE
+              DISPLAY '3100-CERRAR-FICHEROS'
+
+           END-IF
+      *
+           IF FS-FSALIDA NOT = '00'
+              DISPLAY 'ERROR AL CERRAR FICHERO SALIDA FSALIDA'
+              DISPLAY 'FS-FSALIDA: ' FS-FSALIDA
+              DISPLAY '3100-CERRAR-FICHEROS'
+
+           END-IF
+      *
+      *
+           .
+       3100-CERRAR-FICHEROS-EXIT.
+           EXIT.
+      *
+      *
+       3200-ESTADISTICAS.
+      *
+           DISPLAY '***************************************************'
+           DISPLAY '*****    ESTADISTICAS DEL PGM PGMMPRDI    *** *****'
+           DISPLAY '***************************************************'
+           DISPLAY '*REG. LEIDOS FPROVIN:      ' CN-REG-LEIDOS-FPROVIN
+           DISPLAY '*REG. LEIDOS FDIRELE:      ' CN-REG-LEIDOS-FDIRELE
+           DISPLAY '*REG. ESCRITOS FSALIDA:    ' CN-REG-ESCRITO-FSALIDA
+           DISPLAY '***************************************************'
+      *
+           .
+       3200-ESTADISTICAS-EXIT.
+           EXIT.
+      *
+       9000-LEER-FPROVIN.
+      *
+           INITIALIZE DCLPROVINCIAS
+      *
+           READ FPROVIN INTO DCLPROVINCIAS
+
+           EVALUATE FS-FPROVIN
+               WHEN '00'
+                    MOVE TB-PREFIJO       TO WK-CLAVE1
+                    ADD 1                 TO CN-REG-LEIDOS-FPROVIN
+               WHEN '10'
+                    SET SW-SI-FIN-FPROVIN TO TRUE
+                    MOVE HIGH-VALUES      TO WK-CLAVE1
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER FICHERO ENTRADA FPROVIN'
+                    DISPLAY 'FS-FPROVIN: ' FS-FPROVIN
+                    DISPLAY '9000-LEER-FPROVIN'
+
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+
+           END-EVALUATE
+      *
+           .
+       9000-LEER-FPROVIN-EXIT.
+           EXIT.
+
+       9100-LEER-FDIRELE.
+      *
+           INITIALIZE DCLDIRELEC
+
+           READ FDIRELE INTO DCLDIRELEC
+      *
+           EVALUATE FS-FDIRELE
+               WHEN '00'
+                    MOVE TB-VALOR(1:2)    TO WK-CLAVE2
+                    ADD 1                 TO CN-REG-LEIDOS-FDIRELE
+               WHEN '10'
+                    SET SW-SI-FIN-FDIRELE TO TRUE
+                    MOVE HIGH-VALUES      TO WK-CLAVE2
+               WHEN OTHER
+                    DISPLAY 'ERROR AL LEER FICHERO ENTRADA FDIRELE'
+                    DISPLAY 'FS-FDIRELE: ' FS-FDIRELE
+                    DISPLAY '9100-LEER-FDIRELE'
+
+                    PERFORM 3000-FIN
+                       THRU 3000-FIN-EXIT
+
+           END-EVALUATE
+      *
+           .
+       9100-LEER-FDIRELE-EXIT.
+           EXIT.
+      *
+      *
+      *
